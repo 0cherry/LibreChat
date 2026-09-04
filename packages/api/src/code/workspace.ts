@@ -41,6 +41,7 @@ const LIST_RESULT_KEYS = new Set([
   'workspaceId',
   'paths',
   'truncated',
+  'nextAfterPath',
 ]);
 const COMMAND_RESULT_KEYS = new Set([
   'protocolVersion',
@@ -78,6 +79,7 @@ export interface WorkspaceListRequest {
   workspaceId: string;
   path?: string;
   maxResults?: number;
+  afterPath?: string;
 }
 
 export interface WorkspaceExecuteCommandRequest {
@@ -122,6 +124,7 @@ export interface WorkspaceListResult {
   workspaceId: string;
   paths: string[];
   truncated: boolean;
+  nextAfterPath?: string;
 }
 
 export interface WorkspaceExecuteCommandResult {
@@ -201,6 +204,18 @@ function isWithinRequestedPath(candidate: string, requestedPath: string | undefi
   return normalizedCandidate === prefix || normalizedCandidate.startsWith(`${prefix}/`);
 }
 
+function comparePortablePaths(left: string, right: string): number {
+  const encoder = new TextEncoder();
+  const leftBytes = encoder.encode(left);
+  const rightBytes = encoder.encode(right);
+  const sharedLength = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const difference = leftBytes[index] - rightBytes[index];
+    if (difference !== 0) return difference;
+  }
+  return leftBytes.length - rightBytes.length;
+}
+
 async function readBoundedJson(response: Response, signal?: AbortSignal): Promise<unknown> {
   const declaredLength = Number(response.headers.get('content-length'));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
@@ -264,6 +279,9 @@ function isValidRequest(request: WorkspaceToolRequest): boolean {
   if (request.operation === 'list_files') {
     return (
       (request.path == null || isSafePath(request.path)) &&
+      (request.afterPath == null ||
+        (isSafePath(request.afterPath) &&
+          isWithinRequestedPath(request.afterPath, request.path))) &&
       (request.maxResults == null || isPositiveInteger(request.maxResults, MAX_LIST_RESULTS))
     );
   }
@@ -338,13 +356,27 @@ function isValidResult(
   }
   if (request.operation === 'list_files') {
     const maxResults = request.maxResults ?? 100;
-    return (
-      hasOnlyKeys(value, LIST_RESULT_KEYS) &&
-      Array.isArray(value.paths) &&
-      value.paths.length <= maxResults &&
-      new Set(value.paths).size === value.paths.length &&
-      value.paths.every((path) => isSafePath(path) && isWithinRequestedPath(path, request.path))
-    );
+    if (
+      !hasOnlyKeys(value, LIST_RESULT_KEYS) ||
+      !Array.isArray(value.paths) ||
+      value.paths.length > maxResults
+    ) {
+      return false;
+    }
+    let previousPath = request.afterPath;
+    for (const path of value.paths) {
+      if (
+        !isSafePath(path) ||
+        !isWithinRequestedPath(path, request.path) ||
+        (previousPath != null && comparePortablePaths(path, previousPath) <= 0)
+      ) {
+        return false;
+      }
+      previousPath = path;
+    }
+    return value.truncated === true
+      ? value.paths.length > 0 && value.nextAfterPath === value.paths[value.paths.length - 1]
+      : value.nextAfterPath == null;
   }
   if (request.operation === 'execute_command') {
     const stdout = typeof value.stdout === 'string' ? value.stdout : null;
