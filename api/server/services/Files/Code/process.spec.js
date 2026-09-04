@@ -1955,6 +1955,7 @@ describe('Code Process', () => {
         listWorkspaceFiles({
           workspace_id: 'primary',
           path: 'src',
+          after_path: 'src/app.ts',
           max_results: 20,
           codeApiBaseUrl: 'https://attached-code.example.com/v1',
           executionProfile: 'stateful',
@@ -1976,6 +1977,7 @@ describe('Code Process', () => {
           operation: 'list_files',
           workspaceId: 'primary',
           path: 'src',
+          afterPath: 'src/app.ts',
           maxResults: 20,
         },
         signal: controller.signal,

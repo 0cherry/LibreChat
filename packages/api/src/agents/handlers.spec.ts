@@ -5342,7 +5342,7 @@ describe('createToolExecuteHandler', () => {
             {
               id: 'call_workspace_list',
               name: 'list_workspace_files',
-              args: { path: 'src', max_results: 20 },
+              args: { path: 'src', after_path: 'src/app.ts', max_results: 20 },
             },
           ],
           signal: controller.signal,
@@ -5354,6 +5354,7 @@ describe('createToolExecuteHandler', () => {
       expect(listWorkspaceFiles).toHaveBeenCalledWith({
         workspace_id: 'primary',
         path: 'src',
+        after_path: 'src/app.ts',
         max_results: 20,
         codeApiBaseUrl: 'https://code.example.com/v1',
         executionProfile: 'stateful',
@@ -5400,7 +5401,7 @@ describe('createToolExecuteHandler', () => {
       const content = result.content as string;
       const [listedPaths] = content.split('\n\n');
       expect(result.status).toBe('success');
-      expect(content).toContain('[results truncated; narrow path and list again]');
+      expect(content).toContain('[results truncated; continue with after_path:');
       expect(Buffer.byteLength(content, 'utf8')).toBeLessThanOrEqual(262_144);
       expect(listedPaths.split('\n').every((path) => path.endsWith('.txt'))).toBe(true);
     });
@@ -5419,6 +5420,7 @@ describe('createToolExecuteHandler', () => {
         workspaceId: 'primary',
         paths,
         truncated: true,
+        nextAfterPath: paths[paths.length - 1],
       }));
       const handler = makeReadFileHandler({
         codeEnvAvailable: true,
@@ -5442,11 +5444,15 @@ describe('createToolExecuteHandler', () => {
 
       const content = result.content as string;
       const [listedPaths] = content.split('\n\n');
+      const completePaths = listedPaths.split('\n');
+      const lastContinuationPath = completePaths.at(-1)?.slice('workspace/'.length);
       expect(result.status).toBe('success');
-      expect(content).toContain('[results truncated; narrow path and list again]');
+      expect(content).toContain('[results truncated; continue with after_path:');
       expect(Buffer.byteLength(content, 'utf8')).toBeLessThanOrEqual(262_144);
-      expect(listedPaths.split('\n')).toHaveLength(63);
-      expect(listedPaths.split('\n').every((path) => path.endsWith('.txt'))).toBe(true);
+      expect(completePaths.length).toBeGreaterThan(0);
+      expect(completePaths.length).toBeLessThan(paths.length);
+      expect(completePaths.every((path) => path.endsWith('.txt'))).toBe(true);
+      expect(content).toContain(`after_path: ${JSON.stringify(lastContinuationPath)}`);
     });
 
     it('filters every listed workspace filename before returning any path', async () => {
