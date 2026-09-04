@@ -133,6 +133,51 @@ export function clampSettingRange(value: number, range: SettingRange): number {
 
 export type SettingsConfiguration = SettingDefinition[];
 
+function isSettingDefinition(
+  setting: Partial<SettingDefinition>,
+): setting is SettingDefinition {
+  return setting.key != null && setting.type != null && setting.component != null;
+}
+
+/**
+ * Applies endpoint-specific parameter overrides while preserving the shared
+ * parameter order, then appends complete endpoint-specific parameters.
+ */
+export function mergeSettingDefinitions(
+  settings: SettingsConfiguration,
+  overrides: Partial<SettingDefinition>[],
+): SettingsConfiguration {
+  const overridesByKey = new Map<string, Partial<SettingDefinition>>();
+  for (const override of overrides) {
+    if (override.key != null) {
+      overridesByKey.set(override.key, override);
+    }
+  }
+
+  const settingKeys = new Set(settings.map((setting) => setting.key));
+  const mergedSettings = settings.map((setting) => {
+    const override = overridesByKey.get(setting.key);
+    if (!override) {
+      return setting;
+    }
+    return {
+      ...setting,
+      ...override,
+      key: override.key ?? setting.key,
+      type: override.type ?? setting.type,
+      component: override.component ?? setting.component,
+    };
+  });
+
+  overridesByKey.forEach((override, key) => {
+    if (!settingKeys.has(key) && isSettingDefinition(override)) {
+      mergedSettings.push(override);
+    }
+  });
+
+  return mergedSettings;
+}
+
 export function generateDynamicSchema(settings: SettingsConfiguration) {
   const schemaFields: { [key: string]: z.ZodTypeAny } = {};
 

@@ -607,6 +607,7 @@ export function getOpenAILLMConfig({
     reasoning_summary,
     reasoning_mode,
     reasoning_context,
+    thinking,
     verbosity,
     web_search,
     promptCache,
@@ -639,6 +640,7 @@ export function getOpenAILLMConfig({
   let reasoningSummary = reasoning_summary;
   let reasoningMode = reasoning_mode;
   let reasoningContext = reasoning_context;
+  let enableThinking = thinking;
 
   if (verbosity != null && verbosity !== '' && useOpenRouter) {
     llmConfig.verbosity = verbosity;
@@ -669,6 +671,12 @@ export function getOpenAILLMConfig({
       if (key === 'promptCacheTtl') {
         if (promptCacheTtlValue === undefined && (value === '5m' || value === '1h')) {
           promptCacheTtlValue = value;
+        }
+        continue;
+      }
+      if (key === 'thinking') {
+        if (enableThinking === undefined && typeof value === 'boolean') {
+          enableThinking = value;
         }
         continue;
       }
@@ -738,6 +746,12 @@ export function getOpenAILLMConfig({
       if (key === 'promptCacheTtl') {
         if (value === '5m' || value === '1h') {
           promptCacheTtlValue = value;
+        }
+        continue;
+      }
+      if (key === 'thinking') {
+        if (typeof value === 'boolean') {
+          enableThinking = value;
         }
         continue;
       }
@@ -931,6 +945,25 @@ export function getOpenAILLMConfig({
     combinedDropParams.forEach((param) => deleteConfigParam({ param, llmConfig, modelKwargs }));
   } else if (dropParams && Array.isArray(dropParams)) {
     dropParams.forEach((param) => deleteConfigParam({ param, llmConfig, modelKwargs }));
+  }
+
+  if (
+    enableThinking !== undefined &&
+    !dropParams?.includes('thinking') &&
+    !dropParams?.includes('chat_template_kwargs')
+  ) {
+    const existingTemplateKwargs = modelKwargs.chat_template_kwargs;
+    const chatTemplateKwargs =
+      existingTemplateKwargs != null &&
+      typeof existingTemplateKwargs === 'object' &&
+      !Array.isArray(existingTemplateKwargs)
+        ? existingTemplateKwargs
+        : {};
+    modelKwargs.chat_template_kwargs = {
+      ...chatTemplateKwargs,
+      enable_thinking: enableThinking,
+    };
+    hasModelKwargs = true;
   }
 
   hasModelKwargs =

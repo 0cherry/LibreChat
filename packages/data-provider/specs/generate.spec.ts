@@ -4,8 +4,66 @@ import {
   validateSettingDefinitions,
   OptionTypes,
   clampSettingRange,
+  mergeSettingDefinitions,
 } from '../src/generate';
 import type { SettingsConfiguration } from '../src/generate';
+
+describe('mergeSettingDefinitions', () => {
+  it('overrides shared settings and appends complete endpoint-specific settings', () => {
+    const settings: SettingsConfiguration = [
+      {
+        key: 'temperature',
+        type: 'number',
+        component: 'slider',
+        range: { min: 0, max: 2 },
+        label: 'Temperature',
+      },
+    ];
+
+    const result = mergeSettingDefinitions(settings, [
+      { key: 'temperature', default: 0.5, label: 'Custom temperature' },
+      {
+        key: 'thinking',
+        type: 'boolean',
+        component: 'switch',
+        default: false,
+        label: 'Qwen thinking',
+      },
+    ]);
+
+    expect(result).toEqual([
+      {
+        key: 'temperature',
+        type: 'number',
+        component: 'slider',
+        range: { min: 0, max: 2 },
+        default: 0.5,
+        label: 'Custom temperature',
+      },
+      {
+        key: 'thinking',
+        type: 'boolean',
+        component: 'switch',
+        default: false,
+        label: 'Qwen thinking',
+      },
+    ]);
+  });
+
+  it('ignores incomplete endpoint-specific settings', () => {
+    const settings: SettingsConfiguration = [
+      {
+        key: 'temperature',
+        type: 'number',
+        component: 'input',
+      },
+    ];
+
+    expect(mergeSettingDefinitions(settings, [{ key: 'incomplete', default: false }])).toEqual(
+      settings,
+    );
+  });
+});
 
 describe('generateDynamicSchema', () => {
   it('should generate a schema for number settings with range', () => {

@@ -1077,6 +1077,83 @@ describe('getOpenAILLMConfig', () => {
     });
   });
 
+  describe('Qwen chat template thinking', () => {
+    it.each([true, false])(
+      'maps a conversation thinking value of %s to chat_template_kwargs',
+      (thinking) => {
+        const result = getOpenAILLMConfig({
+          apiKey: 'test-api-key',
+          streaming: true,
+          modelOptions: {
+            model: 'Qwen/Qwen3.6-27B',
+            thinking,
+          },
+        });
+
+        expect(result.llmConfig).not.toHaveProperty('thinking');
+        expect(result.llmConfig.modelKwargs).toMatchObject({
+          chat_template_kwargs: { enable_thinking: thinking },
+        });
+      },
+    );
+
+    it('lets the conversation value override the endpoint default', () => {
+      const result = getOpenAILLMConfig({
+        apiKey: 'test-api-key',
+        streaming: true,
+        modelOptions: {
+          model: 'Qwen/Qwen3.6-27B',
+          thinking: true,
+        },
+        defaultParams: {
+          thinking: false,
+        },
+      });
+
+      expect(result.llmConfig.modelKwargs).toMatchObject({
+        chat_template_kwargs: { enable_thinking: true },
+      });
+    });
+
+    it('uses the endpoint default and preserves other chat template arguments', () => {
+      const result = getOpenAILLMConfig({
+        apiKey: 'test-api-key',
+        streaming: true,
+        modelOptions: {
+          model: 'Qwen/Qwen3.6-27B',
+        },
+        defaultParams: {
+          thinking: false,
+        },
+        addParams: {
+          chat_template_kwargs: { add_generation_prompt: true },
+        },
+      });
+
+      expect(result.llmConfig.modelKwargs).toMatchObject({
+        chat_template_kwargs: {
+          add_generation_prompt: true,
+          enable_thinking: false,
+        },
+      });
+    });
+
+    it('does not send chat template thinking when it is dropped', () => {
+      const result = getOpenAILLMConfig({
+        apiKey: 'test-api-key',
+        streaming: true,
+        modelOptions: {
+          model: 'Qwen/Qwen3.6-27B',
+          thinking: true,
+        },
+        dropParams: ['thinking'],
+      });
+
+      expect(result.llmConfig).not.toHaveProperty('thinking');
+      expect(result.llmConfig).not.toHaveProperty('modelKwargs');
+    });
+  });
+
   describe('Drop Parameters', () => {
     it('should drop specified parameters', () => {
       const result = getOpenAILLMConfig({

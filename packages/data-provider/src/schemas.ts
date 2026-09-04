@@ -1596,6 +1596,7 @@ export const openAIBaseSchema = tConversationSchema.pick({
   reasoning_summary: true,
   reasoning_mode: true,
   reasoning_context: true,
+  thinking: true,
   verbosity: true,
   useResponsesApi: true,
   web_search: true,

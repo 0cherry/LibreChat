@@ -209,18 +209,8 @@ function parseCustomParams(endpointName, customParams) {
   const defaultParams = regularParams.concat(agentParams);
   const defaultParamsMap = keyBy(defaultParams, 'key');
 
-  // TODO: Remove this check once we support new parameters not part of default parameters.
-  // Checks if every key in `paramDefinitions` is valid.
-  const validKeys = new Set(Object.keys(defaultParamsMap));
-  const paramKeys = customParams.paramDefinitions.map((param) => param.key);
-  if (paramKeys.some((key) => !validKeys.has(key))) {
-    throw new Error(
-      `paramDefinitions of "${endpointName}" endpoint contains invalid key(s). ` +
-        `Valid parameter keys are ${Array.from(validKeys).join(', ')}`,
-    );
-  }
-
-  // Fill out missing values for custom param definitions
+  // Fill out missing values for shared definitions. Complete endpoint-specific
+  // definitions are also supported and validated below.
   customParams.paramDefinitions = customParams.paramDefinitions.map((param) => {
     return { ...defaultParamsMap[param.key], ...param, optionType: 'custom' };
   });

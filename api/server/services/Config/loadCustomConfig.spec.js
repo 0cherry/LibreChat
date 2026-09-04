@@ -305,16 +305,43 @@ describe('loadCustomConfig', () => {
       expect(result).toEqual(mockConfig);
     });
 
-    it('throws an error when paramDefinitions contain unsupported keys', async () => {
-      const malformedCustomParams = {
+    it('supports complete endpoint-specific parameter definitions', async () => {
+      const customParams = {
         defaultParamsEndpoint: 'google',
         paramDefinitions: [
-          { key: 'temperature', default: 0.5 },
-          { key: 'unsupportedKey', range: 0.5 },
+          {
+            key: 'thinking',
+            label: 'Qwen thinking',
+            type: 'boolean',
+            default: false,
+            component: 'switch',
+            columnSpan: 2,
+          },
         ],
       };
+
+      const parsedConfig = await loadCustomParams(customParams);
+      expect(parsedConfig.endpoints.custom[0].customParams.paramDefinitions).toEqual([
+        {
+          key: 'thinking',
+          label: 'Qwen thinking',
+          type: 'boolean',
+          default: false,
+          component: 'switch',
+          columnSpan: 2,
+          optionType: 'custom',
+        },
+      ]);
+    });
+
+    it('rejects incomplete endpoint-specific parameter definitions', async () => {
+      const malformedCustomParams = {
+        defaultParamsEndpoint: 'google',
+        paramDefinitions: [{ key: 'unsupportedKey', default: false }],
+      };
+
       await expect(loadCustomParams(malformedCustomParams)).rejects.toThrow(
-        'paramDefinitions of "Google" endpoint contains invalid key(s). Valid parameter keys are pressure, temperature',
+        /Custom parameter definitions for "Google" endpoint is malformed:/,
       );
     });
 
