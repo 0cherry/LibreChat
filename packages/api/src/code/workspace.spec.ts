@@ -432,7 +432,33 @@ describe('executeWorkspaceTool', () => {
     ).rejects.toMatchObject({ reason: 'invalid' });
   });
 
+  test('rejects newline-delimited paths returned by an attached worker', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(
+      Response.json({
+        protocolVersion: 1,
+        operation: 'list_files',
+        workspaceId: 'primary',
+        paths: ['src/safe.ts\nworkspace/src/injected.ts'],
+        truncated: false,
+      }),
+    );
+
+    await expect(
+      executeWorkspaceTool({
+        baseURL: 'https://code.example.com/v1',
+        authHeaders: { Authorization: 'Bearer jwt' },
+        request: {
+          protocolVersion: 1,
+          operation: 'list_files',
+          workspaceId: 'primary',
+        },
+        fetchImpl,
+      }),
+    ).rejects.toMatchObject({ reason: 'invalid' });
+  });
+
   test('rejects an oversized response before parsing worker-controlled JSON', async () => {
+    const cancel = jest.fn();
     const json = jest.fn().mockResolvedValue({
       protocolVersion: 1,
       operation: 'read_file',
@@ -447,6 +473,7 @@ describe('executeWorkspaceTool', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'Content-Length': String(5 * 1024 * 1024) }),
+      body: new ReadableStream({ cancel }),
       json,
     } as unknown as Response);
 
@@ -464,6 +491,26 @@ describe('executeWorkspaceTool', () => {
       }),
     ).rejects.toMatchObject({ reason: 'invalid' });
     expect(json).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  test('rejects unrecognized workspace operations before dispatch', async () => {
+    const fetchImpl = jest.fn();
+
+    await expect(
+      executeWorkspaceTool({
+        baseURL: 'https://code.example.com/v1',
+        authHeaders: { Authorization: 'Bearer jwt' },
+        request: {
+          protocolVersion: 1,
+          operation: 'delete_file',
+          workspaceId: 'primary',
+          query: 'ignored',
+        } as never,
+        fetchImpl,
+      }),
+    ).rejects.toMatchObject({ reason: 'invalid' });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   test('accepts a bounded command result from the selected attached worker', async () => {

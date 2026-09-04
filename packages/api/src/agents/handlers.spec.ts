@@ -5405,6 +5405,50 @@ describe('createToolExecuteHandler', () => {
       expect(listedPaths.split('\n').every((path) => path.endsWith('.txt'))).toBe(true);
     });
 
+    it('reserves truncation-notice bytes without returning a partial final path', async () => {
+      const paths = Array.from(
+        { length: 64 },
+        (_, index) => `src/${index}-${'a'.repeat(4074)}.txt`,
+      );
+      const unboundedContent = paths.map((path) => `workspace/${path}`).join('\n');
+      expect(Buffer.byteLength(unboundedContent, 'utf8')).toBeLessThanOrEqual(262_144);
+
+      const listWorkspaceFiles = jest.fn(async () => ({
+        protocolVersion: 1 as const,
+        operation: 'list_files' as const,
+        workspaceId: 'primary',
+        paths,
+        truncated: true,
+      }));
+      const handler = makeReadFileHandler({
+        codeEnvAvailable: true,
+        codeExecutionContext: {
+          baseUrl: 'https://code.example.com/v1',
+          codeSessionKey: 'execute_code:stateful:attached',
+          executionProfile: 'stateful',
+          environmentType: 'attached',
+          statefulSessions: true,
+        },
+        listWorkspaceFiles,
+      });
+
+      const [result] = await invokeHandler(handler, [
+        {
+          id: 'call_upstream_truncated_workspace_list',
+          name: 'list_workspace_files',
+          args: { max_results: 64 },
+        },
+      ]);
+
+      const content = result.content as string;
+      const [listedPaths] = content.split('\n\n');
+      expect(result.status).toBe('success');
+      expect(content).toContain('[results truncated; narrow path and list again]');
+      expect(Buffer.byteLength(content, 'utf8')).toBeLessThanOrEqual(262_144);
+      expect(listedPaths.split('\n')).toHaveLength(63);
+      expect(listedPaths.split('\n').every((path) => path.endsWith('.txt'))).toBe(true);
+    });
+
     it('filters every listed workspace filename before returning any path', async () => {
       const protectedValue = 'PROTECTED-WORKSPACE-NAME';
       const listWorkspaceFiles = jest.fn(async () => ({

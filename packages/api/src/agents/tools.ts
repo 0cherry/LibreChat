@@ -426,7 +426,7 @@ const CODE_READ_FILE_DESCRIPTION = `Read a known file from the code-execution sa
 
 Use for text, CSV, JSON, Markdown, logs, small source files, and images at paths returned by tool output, just written, or under /mnt/data/. Do not run ls/find just to rediscover known paths. Use bash_tool for other binary files, large files, transforms, metadata, or true filesystem discovery. /tmp is per-call scratch and unavailable later.`;
 
-const ATTACHED_WORKSPACE_READ_FILE_INSTRUCTIONS = `For an attached environment, use "workspace/{relativePath}" to read a file from the workspace directory registered on the worker. It may be an existing project, a Git repository, or an empty directory; Git is not required. The worker's host path stays private. Use start_line and max_lines for bounded pagination.`;
+const ATTACHED_WORKSPACE_READ_FILE_INSTRUCTIONS = `For an attached environment, use "workspace/{relativePath}" to read a file from the workspace directory registered on the worker. Use a canonical relative path without empty, ".", or ".." segments. It may be an existing project, a Git repository, or an empty directory; Git is not required. The worker's host path stays private. Use start_line and max_lines for bounded pagination.`;
 
 const CODE_READ_FILE_PARAMETERS: LCTool['parameters'] = Object.freeze({
   type: 'object',
@@ -446,7 +446,7 @@ const ATTACHED_WORKSPACE_READ_FILE_PARAMETERS: LCTool['parameters'] = Object.fre
     path: {
       type: 'string',
       description:
-        'Use "workspace/{relativePath}" for a file in the attached worker workspace directory, or a code-execution sandbox path such as "/mnt/data/result.csv".',
+        'Use "workspace/{relativePath}" with a canonical relative path (no empty, ".", or ".." segments) for a file in the attached worker workspace directory, or a code-execution sandbox path such as "/mnt/data/result.csv".',
     },
     start_line: {
       type: 'integer',
@@ -498,7 +498,8 @@ const SEARCH_WORKSPACE_TOOL_DEF: LCTool = Object.freeze({
       },
       path: {
         type: 'string',
-        description: 'Optional relative file or directory within the attached workspace.',
+        description:
+          'Optional canonical relative file or directory within the attached workspace; do not use empty, ".", or ".." segments.',
       },
       max_results: {
         type: 'integer',
@@ -520,7 +521,8 @@ const LIST_WORKSPACE_FILES_TOOL_DEF: LCTool = Object.freeze({
     properties: {
       path: {
         type: 'string',
-        description: 'Optional relative file or directory within the attached workspace.',
+        description:
+          'Optional canonical relative file or directory within the attached workspace; do not use empty, ".", or ".." segments.',
       },
       max_results: {
         type: 'integer',
@@ -712,18 +714,23 @@ Very long content can exceed the streamed tool-argument limit (64 KB by default)
 
 const ATTACHED_CODE_EDIT_FILE_DESCRIPTION = `Apply one or more ordered exact text replacements to an existing file in the selected attached environment.
 
-Use a path in the form "workspace/{relativePath}". Every old_text must match exactly one location at its step in the batch. Up to 100 replacements and 1 MiB of edit text are allowed; the entire batch commits atomically or makes no change.`;
+Use a path in the form "workspace/{relativePath}". Every old_text must match exactly one location at its step in the batch. Up to 100 replacements and 1 MiB of edit text are allowed, and the resulting file must remain at or below 1 MiB. The entire batch commits atomically or makes no change.`;
 
 const ATTACHED_SKILL_CREATE_FILE_DESCRIPTION = `${SKILL_CREATE_FILE_DESCRIPTION.replace(
+  ' Put large runnable artifacts in bundled files such as references/template.html, and have SKILL.md tell the agent when to read or reuse them.',
+  '',
+).replace(
   'Non-skills paths target the code-execution sandbox when enabled. Prefer /mnt/data/{file}.',
   'For the selected attached environment, non-skill paths must use "workspace/{relativePath}".',
-)}`;
+)}
+
+For workspace/{relativePath} paths, the attached environment limits each write to 1 MiB.`;
 
 const ATTACHED_SKILL_EDIT_FILE_DESCRIPTION = `Apply targeted text replacements to an existing file.
 
 For skills/{skillName}/... paths, exact matching falls back to whitespace-tolerant matching when needed and the result includes a unified diff. Keep SKILL.md YAML frontmatter name equal to {skillName}; create a new skills/{newName}/SKILL.md to rename a skill.
 
-For workspace/{relativePath} paths in the selected attached environment, every old_text must match exactly one location at its step. There is no whitespace-tolerant fallback. Up to 100 replacements and 1 MiB of edit text commit atomically, and the result is a write summary rather than a unified diff.`;
+For workspace/{relativePath} paths in the selected attached environment, every old_text must match exactly one location at its step. There is no whitespace-tolerant fallback. Up to 100 replacements and 1 MiB of edit text are allowed, and the resulting file must remain at or below 1 MiB. The batch commits atomically, and the result is a write summary rather than a unified diff.`;
 
 function attachedFileAuthoringParameters(
   parameters: LCTool['parameters'],

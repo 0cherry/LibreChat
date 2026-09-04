@@ -2494,19 +2494,13 @@ async function handleWorkspaceListCall(
         ? 'The attached workspace contains no discoverable files in that path.'
         : result.paths.map((path) => `workspace/${path}`).join('\n');
     const truncationNotice = '\n\n[results truncated; narrow path and list again]';
-    const locallyTruncated = Buffer.byteLength(unboundedContent, 'utf8') > MAX_READABLE_BYTES;
+    const contentByteLimit = MAX_READABLE_BYTES - Buffer.byteLength(truncationNotice, 'utf8');
+    const locallyTruncated = Buffer.byteLength(unboundedContent, 'utf8') > contentByteLimit;
     const truncated = locallyTruncated || result.truncated;
-    let content = truncated
-      ? truncateUtf8(
-          unboundedContent,
-          MAX_READABLE_BYTES - Buffer.byteLength(truncationNotice, 'utf8'),
-        )
-      : unboundedContent;
+    let content = truncated ? truncateUtf8(unboundedContent, contentByteLimit) : unboundedContent;
     if (locallyTruncated) {
       const lastCompletePath = content.lastIndexOf('\n');
-      if (lastCompletePath >= 0) {
-        content = content.slice(0, lastCompletePath);
-      }
+      content = lastCompletePath >= 0 ? content.slice(0, lastCompletePath) : '';
     }
     return {
       toolCallId: tc.id,

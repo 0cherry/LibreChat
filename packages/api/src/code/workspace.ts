@@ -259,6 +259,8 @@ function isSafePath(value: unknown): value is string {
     value.length > 0 &&
     value.length <= MAX_PATH_LENGTH &&
     !value.includes('\0') &&
+    !value.includes('\r') &&
+    !value.includes('\n') &&
     !value.includes('\\') &&
     !value.startsWith('/') &&
     !/^[A-Za-z]:/.test(value) &&
@@ -321,6 +323,7 @@ function isWithinRequestedPath(candidate: string, requestedPath: string | undefi
 async function readBoundedJson(response: Response, signal?: AbortSignal): Promise<unknown> {
   const declaredLength = Number(response.headers.get('content-length'));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel().catch(() => undefined);
     throw new WorkspaceToolHttpError('invalid');
   }
 
@@ -410,6 +413,9 @@ function isValidRequest(request: WorkspaceToolRequest): boolean {
       areValidWorkspaceEdits(request.edits) &&
       (request.expectedBaseSha256 == null || /^[a-f0-9]{64}$/.test(request.expectedBaseSha256))
     );
+  }
+  if (request.operation !== 'search_text') {
+    return false;
   }
   return (
     typeof request.query === 'string' &&

@@ -532,6 +532,9 @@ describe('registerCodeExecutionTools', () => {
         },
       });
       expect(searchWorkspace?.description).toContain('literal text');
+      expect(searchWorkspace?.parameters.properties.path.description).toContain(
+        'canonical relative',
+      );
       expect(listWorkspaceFiles).toMatchObject({
         name: 'list_workspace_files',
         parameters: {
@@ -542,6 +545,9 @@ describe('registerCodeExecutionTools', () => {
         },
       });
       expect(listWorkspaceFiles?.description).toContain('empty directory');
+      expect(listWorkspaceFiles?.parameters.properties.path.description).toContain(
+        'canonical relative',
+      );
     });
 
     it('upgrades a code-only read_file definition when skills are enabled later in the run', () => {
@@ -876,10 +882,28 @@ describe('registerFileAuthoringTools', () => {
     });
     const createFile = result.toolDefinitions.find((d) => d.name === 'create_file');
     const editFile = result.toolDefinitions.find((d) => d.name === 'edit_file');
+    const skillAwareResult = registerFileAuthoringTools({
+      toolRegistry: makeRegistry(),
+      toolDefinitions: [],
+      includeSkillFileInstructions: true,
+      workspaceTools: true,
+    });
+    const skillAwareCreateFile = skillAwareResult.toolDefinitions.find(
+      (definition) => definition.name === 'create_file',
+    );
+    const skillAwareEditFile = skillAwareResult.toolDefinitions.find(
+      (definition) => definition.name === 'edit_file',
+    );
 
     expect(createFile?.description).toContain('workspace/{relativePath}');
+    expect(createFile?.description).toContain('each write to 1 MiB');
     expect(createFile?.description).not.toContain('/mnt/data/');
     expect(editFile?.description).toContain('entire batch commits atomically');
+    expect(editFile?.description).toContain('resulting file must remain at or below 1 MiB');
+    expect(skillAwareCreateFile?.description).toContain('each write to 1 MiB');
+    expect(skillAwareEditFile?.description).toContain(
+      'resulting file must remain at or below 1 MiB',
+    );
     expect(filePathDescription(createFile)).toContain('workspace/{relativePath}');
     expect(filePathDescription(editFile)).toContain('workspace/{relativePath}');
     expect(isFileAuthoringToolDefinition(createFile)).toBe(true);
