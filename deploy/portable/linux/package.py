@@ -9,9 +9,9 @@ import tarfile
 from pathlib import Path
 
 IMAGE_FIELDS = (
-    ("LIBRECHAT_IMAGE", "LIBRECHAT_IMAGE_ID"),
-    ("MONGO_IMAGE", "MONGO_IMAGE_ID"),
-    ("MEILI_IMAGE", "MEILI_IMAGE_ID"),
+    ("LIBRECHAT_IMAGE", "LIBRECHAT_IMAGE_ID", "LIBRECHAT_CONFIG_ID"),
+    ("MONGO_IMAGE", "MONGO_IMAGE_ID", "MONGO_CONFIG_ID"),
+    ("MEILI_IMAGE", "MEILI_IMAGE_ID", "MEILI_CONFIG_ID"),
 )
 FILES = ("compose.yaml", "setup.sh", "run.sh", "README.md")
 
@@ -91,13 +91,25 @@ def main() -> None:
             shutil.copy2(image_archive, bundle / "images.tar")
 
         values: list[str] = []
-        for index, (tag_field, id_field) in enumerate(IMAGE_FIELDS):
+        for index, (tag_field, id_field, config_id_field) in enumerate(IMAGE_FIELDS):
             item = images[index]
             tag = item.get("tag")
             image_id = item.get("id")
-            if not isinstance(tag, str) or not isinstance(image_id, str):
+            config_id = item.get("configId")
+            if (
+                not isinstance(tag, str)
+                or not isinstance(image_id, str)
+                or not isinstance(config_id, str)
+            ):
                 raise ValueError("Invalid image metadata")
-            values.extend((f"{tag_field}={tag}", f"{id_field}={image_id}"))
+            values.extend(
+                (
+                    f"{tag_field}={tag}",
+                    f"{id_field}={image_id}",
+                    f"{config_id_field}={config_id}",
+                )
+            )
+        values.append(f"SOURCE_COMMIT={commit}")
         values.append(f"IMAGES_SHA256={image_hash}")
         (bundle / "images.env").write_text("\n".join(values) + "\n", encoding="utf-8", newline="\n")
 

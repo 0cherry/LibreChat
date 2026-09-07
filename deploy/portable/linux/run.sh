@@ -32,33 +32,48 @@ manifest_value() {
 
 librechat_image="$(manifest_value LIBRECHAT_IMAGE)"
 librechat_id="$(manifest_value LIBRECHAT_IMAGE_ID)"
+librechat_config_id="$(manifest_value LIBRECHAT_CONFIG_ID)"
 mongo_image="$(manifest_value MONGO_IMAGE)"
 mongo_id="$(manifest_value MONGO_IMAGE_ID)"
+mongo_config_id="$(manifest_value MONGO_CONFIG_ID)"
 meili_image="$(manifest_value MEILI_IMAGE)"
 meili_id="$(manifest_value MEILI_IMAGE_ID)"
+meili_config_id="$(manifest_value MEILI_CONFIG_ID)"
+source_commit="$(manifest_value SOURCE_COMMIT)"
 images_sha256="$(manifest_value IMAGES_SHA256)"
 
 for image in "$librechat_image" "$mongo_image" "$meili_image"; do
   [[ "$image" =~ ^[A-Za-z0-9][A-Za-z0-9./_:-]+$ ]] || fail 'Invalid image tag'
 done
-for id in "$librechat_id" "$mongo_id" "$meili_id"; do
+for id in "$librechat_id" "$librechat_config_id" "$mongo_id" "$mongo_config_id" "$meili_id" "$meili_config_id"; do
   [[ "$id" =~ ^sha256:[a-f0-9]{64}$ ]] || fail 'Invalid image ID'
 done
+[[ "$source_commit" =~ ^[a-f0-9]{40}$ ]] || fail 'Invalid source commit'
 [[ "$images_sha256" =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid image archive SHA256'
 
 verify_images() {
   local actual
+  local config_id
   local image
   local expected
-  while read -r image expected; do
+  local platform
+  while read -r image expected config_id; do
     actual="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)" ||
       fail "Missing image: $image; run ./run.sh load"
-    [[ "$actual" == "$expected" ]] || fail "Image ID mismatch: $image; run ./run.sh load"
+    [[ "$actual" == "$expected" || "$actual" == "$config_id" ]] ||
+      fail "Image ID mismatch: $image; run ./run.sh load"
+    platform="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")"
+    [[ "$platform" == 'linux/amd64' ]] || fail "Wrong image platform: $image"
   done <<EOF
-$librechat_image $librechat_id
-$mongo_image $mongo_id
-$meili_image $meili_id
+$librechat_image $librechat_id $librechat_config_id
+$mongo_image $mongo_id $mongo_config_id
+$meili_image $meili_id $meili_config_id
 EOF
+
+  local actual_revision
+  actual_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$librechat_image")"
+  [[ "$actual_revision" == "$source_commit" ]] ||
+    fail 'LibreChat image source commit does not match images.env'
 }
 
 load_images() {

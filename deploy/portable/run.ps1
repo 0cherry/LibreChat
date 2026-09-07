@@ -27,8 +27,23 @@ function Import-BundleImages {
 
 function Assert-BundleImages {
     foreach ($item in $manifest.images) {
-        $actual = (Invoke-BundleDocker -Arguments @('image', 'inspect', '--format', '{{.Id}}', $item.tag) | Out-String).Trim()
-        if ($actual -ne $item.id) { throw "Image ID mismatch: $($item.tag). Run ./run.ps1 load." }
+        $info = (Invoke-BundleDocker -Arguments @('image', 'inspect', $item.tag) |
+            Out-String | ConvertFrom-Json)[0]
+        $expectedIds = @($item.id)
+        if ($item.PSObject.Properties.Name -contains 'configId') {
+            $expectedIds += $item.configId
+        }
+        if ($info.Id -notin $expectedIds) {
+            throw "Image ID mismatch: $($item.tag). Run ./run.ps1 load."
+        }
+        if ($info.Os -ne 'linux' -or $info.Architecture -ne 'amd64') {
+            throw "Wrong image platform: $($item.tag)."
+        }
+    }
+    $app = (Invoke-BundleDocker -Arguments @('image', 'inspect', $manifest.images[0].tag) |
+        Out-String | ConvertFrom-Json)[0]
+    if ($app.Config.Labels.'org.opencontainers.image.revision' -ne $manifest.sourceCommit) {
+        throw 'LibreChat image source commit does not match the bundle manifest.'
     }
 }
 

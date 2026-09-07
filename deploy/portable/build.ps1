@@ -80,6 +80,16 @@ if ($WslDistro) {
 } else {
     Invoke-BundleDocker -Arguments (@('image', 'save', '--output', "$bundleRelative/images.tar") + $images)
 }
+$savedManifestJson = (& tar -xOf (Join-Path $bundlePath 'images.tar') manifest.json | Out-String)
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read manifest.json from images.tar.' }
+$savedManifest = @($savedManifestJson | ConvertFrom-Json)
+foreach ($item in $metadata) {
+    $saved = @($savedManifest | Where-Object { $_.RepoTags -contains $item.tag })
+    if ($saved.Count -ne 1 -or $saved[0].Config -notmatch '^(?:blobs/sha256/)?([a-f0-9]{64})(?:\.json)?$') {
+        throw "Cannot resolve portable config ID for $($item.tag)."
+    }
+    $item.configId = 'sha256:' + $Matches[1]
+}
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $bundlePath 'images.tar')).Hash.ToLowerInvariant()
 $manifest = [ordered]@{
     format = 1
