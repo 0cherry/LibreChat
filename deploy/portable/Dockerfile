@@ -12,9 +12,9 @@ RUN npm ci --no-audit --fund=false
 ARG NODE_MAX_OLD_SPACE_SIZE=4096
 RUN NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend
 
-FROM runtime AS release
-# Retain workspace dependencies, including cross-env used by administration scripts.
-COPY --from=build --chown=node:node /app /app
+# Promote the completed build snapshot directly. Re-copying /app makes BuildKit rescan
+# millions of node_modules entries and can stall portable builds on Docker-in-WSL.
+FROM build AS release
 ARG BUILD_COMMIT
 ARG BUILD_DATE
 ENV NODE_ENV=production HOST=0.0.0.0 BUILD_COMMIT=${BUILD_COMMIT} BUILD_BRANCH=0cherry BUILD_DATE=${BUILD_DATE}
