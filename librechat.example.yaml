@@ -1025,6 +1025,15 @@ endpoints:
 #     YourCustomEndpointName:
 #       fileLimit: 2
 #       fileSizeLimit: 5
+#       # Optional model-aware routing. Exact model names and `*`/`?` patterns are supported.
+#       # Explicit settings win over discovered capabilities; `auto` uses conservative detection.
+#       modelCapabilities:
+#         default:
+#           images: auto          # auto | native | extract_text | disabled
+#           documents: extract_text
+#         models:
+#           "Qwen/*-VL-*":
+#             images: native
 #   serverFileSizeLimit: 100  # Global server file size limit in MB
 #   avatarSizeLimit: 2  # Limit for user avatar image size in MB
 #   imageGeneration: # Image Gen settings, either percentage or px

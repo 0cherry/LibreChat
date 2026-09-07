@@ -42,12 +42,32 @@ export enum FileContext {
 /** Structural type for a compiled matcher: a native `RegExp` or a linear-time engine both satisfy it. Only `test` is ever called on `supportedMimeTypes`. */
 export type RegexLike = { test(input: string): boolean };
 
+export type ModelAttachmentMode = 'auto' | 'native' | 'extract_text' | 'disabled';
+
+export type ResolvedModelAttachmentMode = Exclude<ModelAttachmentMode, 'auto'>;
+
+export type ModelAttachmentCapabilities = {
+  images?: ModelAttachmentMode;
+  documents?: ModelAttachmentMode;
+};
+
+export type ModelCapabilitiesConfig = {
+  default?: ModelAttachmentCapabilities;
+  models?: Record<string, ModelAttachmentCapabilities>;
+};
+
+export type ResolvedModelAttachmentCapabilities = {
+  images: ResolvedModelAttachmentMode;
+  documents: ResolvedModelAttachmentMode;
+};
+
 export type EndpointFileConfig = {
   disabled?: boolean;
   fileLimit?: number;
   fileSizeLimit?: number;
   totalSizeLimit?: number;
   supportedMimeTypes?: RegexLike[];
+  modelCapabilities?: ModelCapabilitiesConfig;
 };
 
 export type FileConfig = {

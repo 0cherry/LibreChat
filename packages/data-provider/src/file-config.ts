@@ -3,6 +3,8 @@ import type { EndpointFileConfig, FileConfig, RegexLike } from './types/files';
 import { EModelEndpoint, isAgentsEndpoint, isDocumentSupportedProvider } from './schemas';
 import { normalizeEndpointName } from './utils';
 
+export { resolveModelAttachmentCapabilities } from './model-capabilities';
+
 export const supportsFiles = {
   [EModelEndpoint.openAI]: true,
   [EModelEndpoint.google]: true,
@@ -507,12 +509,25 @@ export const fileConfig = {
 
 const supportedMimeTypesSchema = z.array(z.string()).optional();
 
+export const modelAttachmentModeSchema = z.enum(['auto', 'native', 'extract_text', 'disabled']);
+
+export const modelAttachmentCapabilitiesSchema = z.object({
+  images: modelAttachmentModeSchema.optional(),
+  documents: modelAttachmentModeSchema.optional(),
+});
+
+export const modelCapabilitiesSchema = z.object({
+  default: modelAttachmentCapabilitiesSchema.optional(),
+  models: z.record(modelAttachmentCapabilitiesSchema).optional(),
+});
+
 export const endpointFileConfigSchema = z.object({
   disabled: z.boolean().optional(),
   fileLimit: z.number().min(0).optional(),
   fileSizeLimit: z.number().min(0).optional(),
   totalSizeLimit: z.number().min(0).optional(),
   supportedMimeTypes: supportedMimeTypesSchema.optional(),
+  modelCapabilities: modelCapabilitiesSchema.optional(),
 });
 
 const skillFileConfigSchema = z.object({
@@ -871,6 +886,7 @@ function mergeWithDefault(
     fileSizeLimit: endpointConfig.fileSizeLimit ?? defaultConfig.fileSizeLimit,
     totalSizeLimit: endpointConfig.totalSizeLimit ?? defaultConfig.totalSizeLimit,
     supportedMimeTypes: endpointConfig.supportedMimeTypes ?? defaultMimeTypes,
+    modelCapabilities: endpointConfig.modelCapabilities ?? defaultConfig.modelCapabilities,
   };
 }
 
@@ -1094,6 +1110,21 @@ export function mergeFileConfig(dynamic: z.infer<typeof fileConfigSchema> | unde
 
     if (dynamicEndpoint.disabled !== undefined) {
       mergedEndpoint.disabled = dynamicEndpoint.disabled;
+    }
+
+    if (dynamicEndpoint.modelCapabilities !== undefined) {
+      mergedEndpoint.modelCapabilities = {
+        ...(dynamicEndpoint.modelCapabilities.default && {
+          default: { ...dynamicEndpoint.modelCapabilities.default },
+        }),
+        ...(dynamicEndpoint.modelCapabilities.models && {
+          models: Object.fromEntries(
+            Object.entries(dynamicEndpoint.modelCapabilities.models).map(
+              ([model, capabilities]) => [model, { ...capabilities }],
+            ),
+          ),
+        }),
+      };
     }
 
     if (dynamicEndpoint.supportedMimeTypes) {

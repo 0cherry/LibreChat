@@ -70,6 +70,19 @@ function AttachFileChat({
     return agentData?.provider ?? agentsMap?.[conversation.agent_id]?.provider;
   }, [isAgents, conversation?.agent_id, agentData, agentsMap]);
 
+  const model = useMemo(() => {
+    if (!isAgents || !conversation?.agent_id) {
+      return conversation?.model;
+    }
+    return (
+      agentData?.model ??
+      agentData?.model_parameters?.model ??
+      agentsMap?.[conversation.agent_id]?.model ??
+      agentsMap?.[conversation.agent_id]?.model_parameters?.model ??
+      conversation?.model
+    );
+  }, [isAgents, conversation?.agent_id, conversation?.model, agentData, agentsMap]);
+
   const endpointType = useMemo(
     () => resolveEndpointType(endpointsConfig, endpoint, agentProvider),
     [endpointsConfig, endpoint, agentProvider],
@@ -116,6 +129,7 @@ function AttachFileChat({
         conversationId={conversationId}
         agentId={conversation?.agent_id}
         endpointFileConfig={endpointFileConfig}
+        model={model}
         useResponsesApi={useResponsesApi}
         files={files}
         setFiles={setFiles}

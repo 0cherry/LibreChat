@@ -18,6 +18,7 @@ const { createAgent, createFile } = require('~/models');
 jest.mock('~/server/services/Files/process', () => ({
   processDeleteRequest: jest.fn().mockResolvedValue({ deletedFileIds: [], failedFileIds: [] }),
   filterFile: jest.fn(),
+  applyModelAttachmentRouting: jest.fn(),
   processFileUpload: jest.fn(),
   processAgentFileUpload: jest.fn(),
 }));

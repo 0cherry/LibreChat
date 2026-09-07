@@ -1097,6 +1097,31 @@ describe('useFileHandling', () => {
       expect(formData.get('assistant_id')).toBeNull();
     });
 
+    it('sends the resolved agent model exactly once for capability routing', async () => {
+      mockConversation = {
+        conversationId: 'convo-1',
+        endpoint: EModelEndpoint.agents,
+        endpointType: EModelEndpoint.agents,
+        agent_id: 'agent-123',
+      };
+
+      const useFileHandling = await loadHook();
+      const { result } = renderHook(() =>
+        useFileHandling({ additionalMetadata: { model: 'Qwen/Qwen3.6-27B' } }),
+      );
+
+      const textFile = new File(['hello'], 'test.txt', { type: 'text/plain' });
+
+      await act(async () => {
+        await result.current.handleFiles([textFile]);
+      });
+
+      const formData: FormData = mockMutate.mock.calls[0][0];
+      expect(formData.getAll('model')).toEqual(['Qwen/Qwen3.6-27B']);
+      expect(formData.get('agent_id')).toBe('agent-123');
+      expect(formData.get('message_file')).toBe('true');
+    });
+
     it('enters assistants path without override when conversation is assistants', async () => {
       mockConversation = {
         conversationId: 'convo-1',
@@ -1119,6 +1144,7 @@ describe('useFileHandling', () => {
       const formData: FormData = mockMutate.mock.calls[0][0];
       expect(formData.get('endpoint')).toBe('assistants');
       expect(formData.get('message_file')).toBe('true');
+      expect(formData.getAll('model')).toEqual(['gpt-4']);
     });
 
     it('falls back to "default" when no conversation endpoint and no override', async () => {

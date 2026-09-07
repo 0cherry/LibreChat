@@ -18,6 +18,7 @@ import {
   mergeFileConfig,
   inferMimeType,
   textMimeTypes,
+  resolveModelAttachmentCapabilities,
 } from './file-config';
 import { EModelEndpoint } from './schemas';
 
@@ -1734,5 +1735,84 @@ describe('fileConfigSchema clientImageResize', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe('model attachment capabilities', () => {
+  it('preserves legacy behavior when an endpoint does not opt in', () => {
+    expect(resolveModelAttachmentCapabilities({ model: 'unknown-model' })).toBeUndefined();
+  });
+
+  it('uses conservative automatic behavior for an unknown text model', () => {
+    expect(
+      resolveModelAttachmentCapabilities({
+        config: { default: { images: 'auto', documents: 'auto' } },
+        model: 'Qwen/Qwen3.6-27B',
+      }),
+    ).toEqual({ images: 'disabled', documents: 'extract_text' });
+  });
+
+  it('detects common vision-model naming and keeps documents on text extraction', () => {
+    expect(
+      resolveModelAttachmentCapabilities({
+        config: { default: { images: 'auto', documents: 'auto' } },
+        model: 'Qwen/Qwen3-VL-32B',
+      }),
+    ).toEqual({ images: 'native', documents: 'extract_text' });
+  });
+
+  it('applies the most specific wildcard model override over endpoint defaults', () => {
+    expect(
+      resolveModelAttachmentCapabilities({
+        config: {
+          default: { images: 'disabled', documents: 'extract_text' },
+          models: {
+            'Qwen/*': { images: 'auto' },
+            'Qwen/*-VL-*': { images: 'native', documents: 'native' },
+          },
+        },
+        model: 'qwen/qwen3-vl-32b',
+      }),
+    ).toEqual({ images: 'native', documents: 'native' });
+  });
+
+  it('lets discovered metadata resolve auto without overriding an explicit admin choice', () => {
+    expect(
+      resolveModelAttachmentCapabilities({
+        config: { default: { images: 'auto', documents: 'extract_text' } },
+        model: 'private-model',
+        detected: { images: 'native', documents: 'native' },
+      }),
+    ).toEqual({ images: 'native', documents: 'extract_text' });
+  });
+
+  it('validates and preserves model capability configuration while merging', () => {
+    const dynamic = {
+      endpoints: {
+        Local: {
+          modelCapabilities: {
+            default: { images: 'auto' as const, documents: 'extract_text' as const },
+          },
+        },
+      },
+    };
+    expect(fileConfigSchema.safeParse(dynamic).success).toBe(true);
+
+    const merged = mergeFileConfig(dynamic);
+    expect(
+      getEndpointFileConfig({
+        fileConfig: merged,
+        endpoint: 'Local',
+        endpointType: EModelEndpoint.custom,
+      }).modelCapabilities,
+    ).toEqual(dynamic.endpoints.Local.modelCapabilities);
+  });
+
+  it('rejects unknown attachment modes', () => {
+    expect(
+      fileConfigSchema.safeParse({
+        endpoints: { Local: { modelCapabilities: { default: { images: 'guess' } } } },
+      }).success,
+    ).toBe(false);
   });
 });

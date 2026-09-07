@@ -340,6 +340,56 @@ describe('processAgentFileUpload', () => {
     inspectContent.mockReturnValue(null);
   });
 
+  describe('model capability routing', () => {
+    const directMetadata = () => ({
+      endpoint: 'Qwen Local',
+      endpointType: 'custom',
+      message_file: 'true',
+      model: 'Qwen/Qwen3.6-27B',
+      file_id: 'file-uuid-123',
+    });
+
+    const capabilityFileConfig = () => ({
+      ...makeFileConfig(),
+      endpoints: {
+        'Qwen Local': {
+          modelCapabilities: {
+            default: { images: 'auto', documents: 'extract_text' },
+          },
+        },
+      },
+    });
+
+    it('extracts a direct PDF upload as text before it reaches the model', async () => {
+      mergeFileConfig.mockReturnValue(capabilityFileConfig());
+      const req = makeReq({ body: { endpoint: 'Qwen Local', endpointType: 'custom' } });
+
+      await processAgentFileUpload({ req, res: mockRes, metadata: directMetadata() });
+
+      expect(db.createFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: FileSources.text,
+          context: FileContext.message_attachment,
+          text: 'extracted text',
+        }),
+        true,
+      );
+    });
+
+    it('rejects direct image input when automatic detection cannot prove vision support', async () => {
+      mergeFileConfig.mockReturnValue(capabilityFileConfig());
+      const req = makeReq({
+        mimetype: 'image/png',
+        body: { endpoint: 'Qwen Local', endpointType: 'custom' },
+      });
+
+      await expect(
+        processAgentFileUpload({ req, res: mockRes, metadata: directMetadata() }),
+      ).rejects.toThrow('Direct image input is disabled for this model');
+      expect(db.createFile).not.toHaveBeenCalled();
+    });
+  });
+
   describe('content filtering for extracted context', () => {
     const filters = { files: { pii: {} } };
     const extractedTextFinding = {

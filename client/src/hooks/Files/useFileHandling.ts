@@ -391,6 +391,11 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
       }
     }
 
+    const convoModel = conversation?.model ?? '';
+    if (convoModel && formData.get('model') == null) {
+      formData.append('model', convoModel);
+    }
+
     if (!isAssistantsEndpoint(endpointType ?? endpoint)) {
       if (!agent_id) {
         formData.append('message_file', 'true');
@@ -407,7 +412,6 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
       return;
     }
 
-    const convoModel = conversation?.model ?? '';
     const convoAssistantId = conversation?.assistant_id ?? '';
 
     if (!assistant_id) {
@@ -419,7 +423,9 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
 
     if (!assistant_id && convoAssistantId) {
       formData.append('version', version);
-      formData.append('model', convoModel);
+      if (formData.get('model') == null) {
+        formData.append('model', convoModel);
+      }
       formData.append('assistant_id', convoAssistantId);
     }
 

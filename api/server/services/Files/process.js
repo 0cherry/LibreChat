@@ -17,6 +17,7 @@ const {
   removeNullishValues,
   isAssistantsEndpoint,
   getEndpointFileConfig,
+  resolveModelAttachmentCapabilities,
 } = require('librechat-data-provider');
 const { logger, runAsSystem } = require('@librechat/data-schemas');
 const {
@@ -664,6 +665,38 @@ const processFileUpload = async ({ req, res, metadata, sseStream }) => {
   sendUploadSuccess(res, sseStream, 'File uploaded and processed successfully', result);
 };
 
+/** Routes direct message attachments according to the selected model's capabilities. */
+const applyModelAttachmentRouting = ({ req, metadata }) => {
+  const { file } = req;
+  if (isAssistantsEndpoint(metadata.endpoint)) {
+    return;
+  }
+  if (metadata.message_file && !metadata.tool_resource) {
+    const fileConfig = mergeFileConfig(req.config?.fileConfig);
+    const endpointFileConfig = getEndpointFileConfig({
+      endpoint: metadata.endpoint,
+      endpointType: metadata.endpointType,
+      fileConfig,
+    });
+    const capabilities = resolveModelAttachmentCapabilities({
+      config: endpointFileConfig.modelCapabilities,
+      model: metadata.model ?? req.body?.model,
+    });
+    const isImage = file.mimetype.startsWith('image/');
+    const isMedia =
+      isImage || file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/');
+    const mode = isImage ? capabilities?.images : isMedia ? undefined : capabilities?.documents;
+    if (mode === 'extract_text') {
+      metadata.tool_resource = EToolResources.context;
+    } else if (mode === 'disabled') {
+      const kind = isImage ? 'image' : 'document';
+      throw new Error(
+        `Direct ${kind} input is disabled for this model. Choose Upload as Text or configure modelCapabilities.`,
+      );
+    }
+  }
+};
+
 /**
  * Applies the current strategy for file uploads.
  * Saves file metadata to the database with an expiry TTL.
@@ -679,6 +712,7 @@ const processFileUpload = async ({ req, res, metadata, sseStream }) => {
 const processAgentFileUpload = async ({ req, res, metadata, sseStream }) => {
   const { file } = req;
   const appConfig = req.config;
+  applyModelAttachmentRouting({ req, metadata });
   const { agent_id, tool_resource, file_id, temp_file_id = null } = metadata;
 
   let messageAttachment = !!metadata.message_file;
@@ -1442,6 +1476,7 @@ module.exports = {
   startExpiredFileSweep,
   processFileUpload,
   processDeleteRequest,
+  applyModelAttachmentRouting,
   processAgentFileUpload,
   retrieveAndProcessFile,
 };

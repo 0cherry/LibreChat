@@ -4,6 +4,7 @@ import { Constants, EToolResources } from 'librechat-data-provider';
 import type { UploadLifecycleCallbacks } from './useFileHandling';
 import { useChatContext } from '~/Providers/ChatContext';
 import { ephemeralAgentByConvoId } from '~/store';
+import { useDragDropContext } from '~/Providers';
 import useFileHandling from './useFileHandling';
 
 /**
@@ -13,7 +14,8 @@ import useFileHandling from './useFileHandling';
  * whether the files were accepted, so callers can gate success messaging on it.
  */
 export default function useFileUploadRouter() {
-  const { handleFiles } = useFileHandling();
+  const { model } = useDragDropContext();
+  const { handleFiles } = useFileHandling(model ? { additionalMetadata: { model } } : undefined);
   const { conversation } = useChatContext();
   const setEphemeralAgent = useSetRecoilState(
     ephemeralAgentByConvoId(conversation?.conversationId ?? Constants.NEW_CONVO),

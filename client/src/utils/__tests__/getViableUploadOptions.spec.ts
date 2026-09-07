@@ -152,4 +152,54 @@ describe('getViableUploadOptions', () => {
       EToolResources.execute_code,
     ]);
   });
+
+  describe('model capability routing', () => {
+    const capabilityConfig = {
+      default: { images: 'auto' as const, documents: 'extract_text' as const },
+    };
+
+    it('routes a PDF to extracted text instead of a custom provider file part', () => {
+      const ctx = baseCtx({
+        provider: 'Qwen Local',
+        endpoint: 'Qwen Local',
+        endpointType: 'custom',
+        model: 'Qwen/Qwen3.6-27B',
+        fileSearchEnabled: false,
+        codeEnabled: false,
+        endpointFileConfig: { modelCapabilities: capabilityConfig },
+      });
+
+      expect(getViableUploadOptions([file('application/pdf', 'doc.pdf')], ctx)).toEqual([
+        EToolResources.context,
+      ]);
+    });
+
+    it('does not send an image to an unknown text model', () => {
+      const ctx = baseCtx({
+        provider: 'Qwen Local',
+        endpoint: 'Qwen Local',
+        endpointType: 'custom',
+        model: 'Qwen/Qwen3.6-27B',
+        fileSearchEnabled: false,
+        codeEnabled: false,
+        endpointFileConfig: { modelCapabilities: capabilityConfig },
+      });
+
+      expect(getViableUploadOptions([file('image/png', 'diagram.png')], ctx)).toEqual([]);
+    });
+
+    it('sends an image natively when automatic detection recognizes a vision model', () => {
+      const ctx = baseCtx({
+        provider: 'Qwen Local',
+        endpoint: 'Qwen Local',
+        endpointType: 'custom',
+        model: 'Qwen/Qwen3-VL-32B',
+        fileSearchEnabled: false,
+        codeEnabled: false,
+        endpointFileConfig: { modelCapabilities: capabilityConfig },
+      });
+
+      expect(getViableUploadOptions([file('image/png', 'diagram.png')], ctx)).toEqual([undefined]);
+    });
+  });
 });

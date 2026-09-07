@@ -60,6 +60,13 @@ $apiKeyPlaceholder = '${QWEN_API_KEY}'
 $config = @"
 version: 1.3.15
 cache: true
+fileConfig:
+  endpoints:
+    'Qwen Local':
+      modelCapabilities:
+        default:
+          images: auto
+          documents: extract_text
 endpoints:
   allowedAddresses:
     - $allowedAddress

@@ -7,6 +7,12 @@
 포함: Qwen 추론 ON/OFF 기능이 적용된 LibreChat, MongoDB, Meilisearch.
 제외: 기존 사용자·대화·업로드·비밀키, 모델 가중치/서빙, 문서 RAG, 관리자 패널.
 
+첨부파일은 모델 capability에 맞춰 처리해. `VL`, `Vision` 등 비전 모델로 판별되면 이미지를
+네이티브 입력으로 보내고, 일반 모델에서는 직접 이미지 입력을 막아. PDF와 문서는 기본적으로
+LibreChat 내장 파서로 텍스트를 추출해 전달하므로 OpenAI 전용 `type: file` 지원이 필요 없어.
+`librechat.yaml`의 `fileConfig.endpoints.<name>.modelCapabilities`에서 기본값과 모델별 패턴을
+재정의할 수 있어.
+
 ## 1. 요구사항
 
 - x86-64 Linux

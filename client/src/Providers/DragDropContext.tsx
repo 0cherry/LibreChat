@@ -9,6 +9,7 @@ interface DragDropContextValue {
   conversationId: string | null | undefined;
   agentId: string | null | undefined;
   endpoint: string | null | undefined;
+  model: string | null | undefined;
   endpointType?: EModelEndpoint | string | undefined;
   useResponsesApi?: boolean;
 }
@@ -46,6 +47,20 @@ export function DragDropProvider({ children }: { children: React.ReactNode }) {
     [endpointsConfig, conversation?.endpoint, agentProvider],
   );
 
+  const model = useMemo(() => {
+    const isAgents = isAgentsEndpoint(conversation?.endpoint);
+    if (!isAgents || !conversation?.agent_id) {
+      return conversation?.model;
+    }
+    return (
+      agentData?.model ??
+      agentData?.model_parameters?.model ??
+      agentsMap?.[conversation.agent_id]?.model ??
+      agentsMap?.[conversation.agent_id]?.model_parameters?.model ??
+      conversation?.model
+    );
+  }, [conversation?.endpoint, conversation?.agent_id, conversation?.model, agentData, agentsMap]);
+
   const useResponsesApi = useMemo(() => {
     const isAgents = isAgentsEndpoint(conversation?.endpoint);
     if (!isAgents || !conversation?.agent_id || conversation?.useResponsesApi !== undefined) {
@@ -69,6 +84,7 @@ export function DragDropProvider({ children }: { children: React.ReactNode }) {
       conversationId: conversation?.conversationId,
       agentId: conversation?.agent_id,
       endpoint: conversation?.endpoint,
+      model,
       endpointType: endpointType,
       useResponsesApi: useResponsesApi,
     }),
@@ -76,6 +92,7 @@ export function DragDropProvider({ children }: { children: React.ReactNode }) {
       conversation?.conversationId,
       conversation?.agent_id,
       conversation?.endpoint,
+      model,
       useResponsesApi,
       endpointType,
     ],
@@ -88,6 +105,7 @@ const defaultDragDropValue: DragDropContextValue = {
   conversationId: undefined,
   agentId: undefined,
   endpoint: undefined,
+  model: undefined,
   endpointType: undefined,
   useResponsesApi: undefined,
 };

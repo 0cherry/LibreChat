@@ -39,8 +39,11 @@ if ($settings -notmatch '(?m)^ALLOW_REGISTRATION=false\r?$') { throw 'Registrati
 if ($settings -notmatch '(?m)^REQUIRE_ADMIN_APPROVAL=true\r?$') { throw 'Approval must default to required.' }
 if ($settings -notmatch '(?m)^HTTP_PORT=8080\r?$') { throw 'Port was not configured.' }
 $config = Get-Content -Raw -LiteralPath (Join-Path $first 'librechat.yaml')
-if (-not $config.Contains('${QWEN_API_KEY}') -or -not $config.Contains('thinking: false')) {
-    throw 'Missing API key placeholder or thinking default.'
+if (-not $config.Contains('${QWEN_API_KEY}') -or
+    -not $config.Contains('thinking: false') -or
+    -not $config.Contains('images: auto') -or
+    -not $config.Contains('documents: extract_text')) {
+    throw 'Missing API key placeholder, thinking default, or attachment capability defaults.'
 }
 $refused = $false
 try { & (Join-Path $first 'setup.ps1') -ServerUrl 'http://192.168.0.51:3080' } catch { $refused = $true }

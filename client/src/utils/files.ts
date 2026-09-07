@@ -19,6 +19,7 @@ import {
   isPermissiveMimeConfig,
   codeInterpreterMimeTypes,
   isDocumentSupportedProvider,
+  resolveModelAttachmentCapabilities,
   fileConfig as defaultFileConfig,
 } from 'librechat-data-provider';
 import type {
@@ -28,6 +29,8 @@ import type {
   FileConfig,
   FileSources,
   RegexLike,
+  ResolvedModelAttachmentCapabilities,
+  ResolvedModelAttachmentMode,
 } from 'librechat-data-provider';
 import type { QueryClient } from '@tanstack/react-query';
 import type { ExtendedFile } from '~/common';
@@ -501,9 +504,35 @@ export type UploadOptionContext = {
   codeAllowedByAgent: boolean;
   fileConfig: FileConfig | null;
   endpointSupportedMimeTypes?: RegexLike[];
+  endpointFileConfig?: EndpointFileConfig;
+  model?: string | null;
 };
 
-const isProviderAttachType = (type: string, ctx: UploadOptionContext): boolean => {
+const getAttachmentMode = (
+  type: string,
+  capabilities: ResolvedModelAttachmentCapabilities | undefined,
+): ResolvedModelAttachmentMode | undefined => {
+  if (!capabilities) {
+    return undefined;
+  }
+  if (type.startsWith('image/')) {
+    return capabilities.images;
+  }
+  if (type.startsWith('audio/') || type.startsWith('video/')) {
+    return undefined;
+  }
+  return capabilities.documents;
+};
+
+const isProviderAttachType = (
+  type: string,
+  ctx: UploadOptionContext,
+  capabilities: ResolvedModelAttachmentCapabilities | undefined,
+): boolean => {
+  const attachmentMode = getAttachmentMode(type, capabilities);
+  if (attachmentMode != null && attachmentMode !== 'native') {
+    return false;
+  }
   let currentProvider = (ctx.provider || ctx.endpoint) ?? '';
   if (currentProvider.toLowerCase() === Providers.OPENROUTER) {
     currentProvider = Providers.OPENROUTER;
@@ -569,9 +598,13 @@ export const getViableUploadOptions = (
   }
   const every = (predicate: (type: string) => boolean) =>
     types.every((type) => predicate(type as string));
+  const modelCapabilities = resolveModelAttachmentCapabilities({
+    config: ctx.endpointFileConfig?.modelCapabilities,
+    model: ctx.model,
+  });
 
   const options: (EToolResources | undefined)[] = [];
-  if (every((type) => isProviderAttachType(type, ctx))) {
+  if (every((type) => isProviderAttachType(type, ctx, modelCapabilities))) {
     options.push(undefined);
   }
   if (
@@ -588,7 +621,14 @@ export const getViableUploadOptions = (
   ) {
     options.push(EToolResources.execute_code);
   }
-  if (ctx.contextEnabled && every((type) => isContextType(type, ctx.fileConfig))) {
+  if (
+    ctx.contextEnabled &&
+    every(
+      (type) =>
+        isContextType(type, ctx.fileConfig) &&
+        (getAttachmentMode(type, modelCapabilities) ?? 'extract_text') === 'extract_text',
+    )
+  ) {
     options.push(EToolResources.context);
   }
   return options;

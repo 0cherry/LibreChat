@@ -41,6 +41,8 @@ grep -Eq '^ALLOW_REGISTRATION=false$' "$first/.env"
 grep -Eq '^REQUIRE_ADMIN_APPROVAL=true$' "$first/.env"
 grep -Fq '${QWEN_API_KEY}' "$first/librechat.yaml"
 grep -Fq 'thinking: false' "$first/librechat.yaml"
+grep -Fq 'images: auto' "$first/librechat.yaml"
+grep -Fq 'documents: extract_text' "$first/librechat.yaml"
 [[ "$(stat -c '%a' "$first/.env")" == '600' ]]
 [[ "$(stat -c '%a' "$first/librechat.yaml")" == '600' ]]
 [[ "$(sed -n 's/^JWT_SECRET=//p' "$first/.env")" != "$(sed -n 's/^JWT_SECRET=//p' "$second/.env")" ]]

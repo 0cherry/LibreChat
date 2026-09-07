@@ -101,6 +101,34 @@ describe('BaseClient', () => {
     });
   });
 
+  test('rejects a stale raw document when model capabilities require text extraction', async () => {
+    TestClient.modelOptions.model = 'Qwen/Qwen3.6-27B';
+    TestClient.options = {
+      ...TestClient.options,
+      endpoint: 'Qwen Local',
+      endpointType: 'custom',
+      req: {
+        config: {
+          fileConfig: {
+            endpoints: {
+              'Qwen Local': {
+                modelCapabilities: {
+                  default: { images: 'auto', documents: 'extract_text' },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    await expect(
+      TestClient.processAttachments({}, [
+        { filename: 'manual.pdf', type: 'application/pdf', source: 'local' },
+      ]),
+    ).rejects.toThrow('Re-upload it using Upload as Text');
+  });
+
   test('persists only the host-authored external event display projection on the user turn', () => {
     const projection = {
       version: 1,

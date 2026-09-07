@@ -24,6 +24,7 @@ import {
   defaultAgentCapabilities,
   bedrockDocumentExtensions,
   isDocumentSupportedProvider,
+  resolveModelAttachmentCapabilities,
 } from 'librechat-data-provider';
 import type {
   TConversation,
@@ -77,6 +78,7 @@ interface AttachFileMenuProps {
   endpointType?: EModelEndpoint | string;
   endpointFileConfig?: EndpointFileConfig;
   useResponsesApi?: boolean;
+  model?: string | null;
   files: Map<string, ExtendedFile>;
   setFiles: FileSetter;
   setFilesLoading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -91,6 +93,7 @@ const AttachFileMenu = ({
   conversationId,
   endpointFileConfig,
   useResponsesApi,
+  model,
   files,
   setFiles,
   setFilesLoading,
@@ -106,15 +109,19 @@ const AttachFileMenu = ({
     ephemeralAgentByConvoId(conversationId),
   );
   const toolResourceRef = useRef<EToolResources | undefined>();
-  const { handleFileChange } = useFileHandlingNoChatContext(undefined, {
-    files,
-    setFiles,
-    setFilesLoading,
-    conversation,
-  });
+  const uploadMetadata = useMemo(() => (model ? { model } : undefined), [model]);
+  const { handleFileChange } = useFileHandlingNoChatContext(
+    uploadMetadata ? { additionalMetadata: uploadMetadata } : undefined,
+    {
+      files,
+      setFiles,
+      setFilesLoading,
+      conversation,
+    },
+  );
   const { handleSharePointFiles, isProcessing, downloadProgress } =
     useSharePointFileHandlingNoChatContext(
-      { toolResource: toolResourceRef.current },
+      { toolResource: toolResourceRef.current, additionalMetadata: uploadMetadata },
       { files, setFiles, setFilesLoading, conversation },
     );
 
@@ -133,6 +140,14 @@ const AttachFileMenu = ({
   const { fileSearchAllowedByAgent, codeAllowedByAgent, provider } = useAgentToolPermissions(
     agentId,
     ephemeralAgent,
+  );
+  const modelCapabilities = useMemo(
+    () =>
+      resolveModelAttachmentCapabilities({
+        config: endpointFileConfig?.modelCapabilities,
+        model,
+      }),
+    [endpointFileConfig?.modelCapabilities, model],
   );
 
   const handleUploadClick = useCallback(
@@ -189,29 +204,45 @@ const AttachFileMenu = ({
           endpointType === EModelEndpoint.azureOpenAI) &&
         useResponsesApi === true;
 
+      const nativeImagesAllowed =
+        modelCapabilities == null || modelCapabilities.images === 'native';
+      const nativeDocumentsAllowed =
+        modelCapabilities == null || modelCapabilities.documents === 'native';
+
       if (
         isDocumentSupportedProvider(endpointType) ||
         isDocumentSupportedProvider(currentProvider) ||
         isAzureWithResponsesApi
       ) {
-        items.push({
-          label: localize('com_ui_upload_provider'),
-          onClick: () => {
-            setToolResource(undefined);
-            let fileType: Exclude<FileUploadType, 'image' | 'document'> = 'image_document';
-            if (currentProvider === Providers.GOOGLE || currentProvider === Providers.OPENROUTER) {
-              fileType = 'image_document_video_audio';
-            } else if (
-              currentProvider === Providers.BEDROCK ||
-              endpointType === EModelEndpoint.bedrock
-            ) {
-              fileType = 'image_document_extended';
-            }
-            onAction(fileType);
-          },
-          icon: <FileImageIcon className="icon-md" />,
-        });
-      } else {
+        if (nativeImagesAllowed || nativeDocumentsAllowed) {
+          items.push({
+            label: localize('com_ui_upload_provider'),
+            onClick: () => {
+              setToolResource(undefined);
+              let fileType: FileUploadType;
+              if (nativeImagesAllowed && !nativeDocumentsAllowed) {
+                fileType = 'image';
+              } else if (!nativeImagesAllowed && nativeDocumentsAllowed) {
+                fileType = 'document';
+              } else if (
+                currentProvider === Providers.GOOGLE ||
+                currentProvider === Providers.OPENROUTER
+              ) {
+                fileType = 'image_document_video_audio';
+              } else if (
+                currentProvider === Providers.BEDROCK ||
+                endpointType === EModelEndpoint.bedrock
+              ) {
+                fileType = 'image_document_extended';
+              } else {
+                fileType = 'image_document';
+              }
+              onAction(fileType);
+            },
+            icon: <FileImageIcon className="icon-md" />,
+          });
+        }
+      } else if (nativeImagesAllowed) {
         items.push({
           label: localize('com_ui_upload_image_input'),
           onClick: () => {
@@ -290,6 +321,7 @@ const AttachFileMenu = ({
     endpointType,
     capabilities,
     useResponsesApi,
+    modelCapabilities,
     handleUploadClick,
     setEphemeralAgent,
     sharePointEnabled,

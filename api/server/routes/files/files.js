@@ -37,6 +37,7 @@ const {
   filterFile,
   processFileUpload,
   processDeleteRequest,
+  applyModelAttachmentRouting,
   processAgentFileUpload,
 } = require('~/server/services/Files/process');
 const { fileAccess } = require('~/server/middleware/accessResources/fileAccess');
@@ -741,6 +742,7 @@ router.post('/', async (req, res) => {
   try {
     req.file.originalname = sanitizeFilename(req.file.originalname);
     filterFile({ req });
+    applyModelAttachmentRouting({ req, metadata });
 
     await assertUploadContentAllowed({
       filters: req.config?.filters,

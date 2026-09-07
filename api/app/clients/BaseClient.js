@@ -34,6 +34,7 @@ const {
   isBedrockDocumentType,
   HITL_MESSAGE_FILTER_FIELDS,
   getEndpointFileConfig,
+  resolveModelAttachmentCapabilities,
   stripReasoningLabelMetadata,
 } = require('librechat-data-provider');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
@@ -1728,6 +1729,10 @@ class BaseClient {
         endpointType: this.options.endpointType,
       });
     }
+    const modelCapabilities = resolveModelAttachmentCapabilities({
+      config: this._endpointFileConfig?.modelCapabilities,
+      model: this.modelOptions?.model ?? this.model,
+    });
 
     for (const file of attachments) {
       /** @type {FileSources} */
@@ -1747,11 +1752,26 @@ class BaseClient {
       }
 
       if (file.type.startsWith('image/')) {
+        if (modelCapabilities && modelCapabilities.images !== 'native') {
+          throw new Error(
+            `Image "${file.filename}" is not a native input for this model. Re-upload it using the configured text/OCR route.`,
+          );
+        }
         categorizedAttachments.images.push(file);
       } else if (file.type === 'application/pdf') {
+        if (modelCapabilities && modelCapabilities.documents !== 'native') {
+          throw new Error(
+            `Document "${file.filename}" is not a native input for this model. Re-upload it using Upload as Text.`,
+          );
+        }
         categorizedAttachments.documents.push(file);
         allFiles.push(file);
       } else if (isBedrock && isBedrockDocumentType(file.type)) {
+        if (modelCapabilities && modelCapabilities.documents !== 'native') {
+          throw new Error(
+            `Document "${file.filename}" is not a native input for this model. Re-upload it using Upload as Text.`,
+          );
+        }
         categorizedAttachments.documents.push(file);
         allFiles.push(file);
       } else if (file.type.startsWith('video/')) {
@@ -1766,6 +1786,11 @@ class BaseClient {
         this._endpointFileConfig?.supportedMimeTypes &&
         this._mergedFileConfig.checkType(file.type, this._endpointFileConfig.supportedMimeTypes)
       ) {
+        if (modelCapabilities && modelCapabilities.documents !== 'native') {
+          throw new Error(
+            `Document "${file.filename}" is not a native input for this model. Re-upload it using Upload as Text.`,
+          );
+        }
         categorizedAttachments.documents.push(file);
         allFiles.push(file);
       }

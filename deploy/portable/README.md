@@ -9,6 +9,10 @@ Docker 설치가 끝나 있으면 포함된 이미지로 인터넷 없이 시작
 제외: 기존 사용자·대화·업로드·비밀키, 모델 가중치/서빙, 문서 RAG, 별도 관리자 패널,
 외부 MCP/인터넷 서비스 및 해당 서비스의 의존성.
 
+첨부파일은 모델 capability에 맞춰 처리해. 비전 모델로 판별된 경우에만 이미지를 네이티브
+입력으로 보내고, PDF와 문서는 LibreChat 내장 파서로 텍스트를 추출해 전달해.
+동작은 `librechat.yaml`의 `fileConfig.endpoints.<name>.modelCapabilities`에서 모델별로 재정의할 수 있어.
+
 ## 1. 서버 PC 준비
 
 - Windows 10/11 x86-64와 WSL 2 기반 Docker Desktop을 준비하고 **Linux containers**로 실행해.

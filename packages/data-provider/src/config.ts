@@ -2816,69 +2816,10 @@ export const supportsBalanceCheck = {
   [EModelEndpoint.google]: true,
 };
 
-export const visionModels = [
-  'qwen-vl',
-  'grok-vision',
-  'grok-2-vision',
-  'grok-3',
-  'gpt-4o-mini',
-  'gpt-4o',
-  'gpt-4-turbo',
-  'gpt-4-vision',
-  'o4-mini',
-  'o3',
-  'o1',
-  'gpt-5',
-  'gpt-4.1',
-  'gpt-4.5',
-  'llava',
-  'llava-13b',
-  'gemini-pro-vision',
-  'claude-3',
-  'gemma',
-  'gemini-exp',
-  'gemini-1.5',
-  'gemini-2',
-  'gemini-2.5',
-  'gemini-3',
-  'moondream',
-  'llama3.2-vision',
-  'llama-3.2-11b-vision',
-  'llama-3-2-11b-vision',
-  'llama-3.2-90b-vision',
-  'llama-3-2-90b-vision',
-  'llama-4',
-  'claude-opus-4',
-  'claude-sonnet-4',
-  'claude-haiku-4',
-];
+export { validateVisionModel, visionModels } from './model-capabilities';
 export enum VisionModes {
   generative = 'generative',
   agents = 'agents',
-}
-
-export function validateVisionModel({
-  model,
-  additionalModels = [],
-  availableModels,
-}: {
-  model: string;
-  additionalModels?: string[];
-  availableModels?: string[];
-}) {
-  if (!model) {
-    return false;
-  }
-
-  if (model.includes('gpt-4-turbo-preview') || model.includes('o1-mini')) {
-    return false;
-  }
-
-  if (availableModels && !availableModels.includes(model)) {
-    return false;
-  }
-
-  return visionModels.concat(additionalModels).some((visionModel) => model.includes(visionModel));
 }
 
 export const imageGenTools = new Set([
