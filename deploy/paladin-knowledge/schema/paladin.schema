@@ -1,0 +1,6 @@
+format: paladin.schema/v1
+ontology:
+  - ontology/librechat_knowledge.ontology
+assets: []
+lambdas: []
+actions: []

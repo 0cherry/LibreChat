@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import yauzl from 'yauzl';
 import { megabyte, excelMimeTypes, FileSources } from 'librechat-data-provider';
-import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import type { MistralOCRUploadResult } from '~/types';
+import { extractPdfKnowledge, serializePdfKnowledge } from './pdf';
 import { assertSafeZipSize } from './zipSafety';
 
 type FileParseFn = (file: Express.Multer.File) => Promise<string>;
@@ -72,24 +72,8 @@ function getParserForMimeType(mimetype: string): FileParseFn | undefined {
 
 /** Parses PDF, returns text inside. */
 async function pdfToText(file: Express.Multer.File): Promise<string> {
-  // Imported inline so that Jest can test other routes without failing due to loading ESM
-  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-
   const data = new Uint8Array(await fs.promises.readFile(file.path));
-  const pdf = await getDocument({ data }).promise;
-
-  let fullText = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .filter((item): item is TextItem => !('type' in item))
-      .map((item) => item.str)
-      .join(' ');
-    fullText += pageText + '\n';
-  }
-
-  return fullText;
+  return serializePdfKnowledge(await extractPdfKnowledge(data));
 }
 
 /** Parses Word document, returns text inside. */

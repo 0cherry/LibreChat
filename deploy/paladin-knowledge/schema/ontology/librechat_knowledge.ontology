@@ -1,0 +1,196 @@
+format: paladin.ontology/v1
+name: librechat_knowledge
+description: Source-preserving document knowledge for LibreChat
+entities:
+  - name: KnowledgeDocument
+    description: An uploaded source document with stable ownership and extraction lineage.
+    is_application: true
+    fields:
+      - name: Id
+        type_name: KnowledgeDocumentId
+        value_type: string
+        is_key: true
+      - name: OwnerId
+        type_name: KnowledgeDocumentOwnerId
+        value_type: string
+      - name: FileId
+        type_name: KnowledgeDocumentFileId
+        value_type: string
+      - name: FileName
+        type_name: KnowledgeDocumentFileName
+        value_type: string
+      - name: MimeType
+        type_name: KnowledgeDocumentMimeType
+        value_type: string
+      - name: Title
+        type_name: KnowledgeDocumentTitle
+        value_type: string
+        is_optional: true
+        is_embedding: true
+      - name: SourceSha256
+        type_name: KnowledgeDocumentSourceSha256
+        value_type: string
+      - name: SourceAssetUri
+        type_name: KnowledgeDocumentSourceAssetUri
+        value_type: string
+        is_optional: true
+      - name: ExtractionVersion
+        type_name: KnowledgeDocumentExtractionVersion
+        value_type: string
+      - name: ImportedAt
+        type_name: KnowledgeDocumentImportedAt
+        value_type: datetime
+      - name: Status
+        type_name: KnowledgeDocumentStatus
+        value_type: string
+  - name: KnowledgeSection
+    description: A page-bounded source section whose content can be searched independently.
+    is_application: true
+    fields:
+      - name: Id
+        type_name: KnowledgeSectionId
+        value_type: string
+        is_key: true
+      - name: DocumentId
+        type_name: KnowledgeSectionDocumentId
+        value_type: string
+      - name: OwnerId
+        type_name: KnowledgeSectionOwnerId
+        value_type: string
+      - name: OutlinePath
+        type_name: KnowledgeSectionOutlinePath
+        value_type: string
+        is_optional: true
+      - name: Title
+        type_name: KnowledgeSectionTitle
+        value_type: string
+        is_optional: true
+        is_embedding: true
+      - name: RawContent
+        type_name: KnowledgeSectionRawContent
+        value_type: string
+        is_embedding: true
+      - name: PageStart
+        type_name: KnowledgeSectionPageStart
+        value_type: integer
+      - name: PageEnd
+        type_name: KnowledgeSectionPageEnd
+        value_type: integer
+      - name: ContentHash
+        type_name: KnowledgeSectionContentHash
+        value_type: string
+  - name: KnowledgeRegion
+    description: A table or figure region retained separately from extracted section text.
+    is_application: true
+    fields:
+      - name: Id
+        type_name: KnowledgeRegionId
+        value_type: string
+        is_key: true
+      - name: DocumentId
+        type_name: KnowledgeRegionDocumentId
+        value_type: string
+      - name: OwnerId
+        type_name: KnowledgeRegionOwnerId
+        value_type: string
+      - name: SectionId
+        type_name: KnowledgeRegionSectionId
+        value_type: string
+        is_optional: true
+      - name: ReferenceId
+        type_name: KnowledgeRegionReferenceId
+        value_type: string
+      - name: Kind
+        type_name: KnowledgeRegionKind
+        value_type: string
+      - name: PageNumber
+        type_name: KnowledgeRegionPageNumber
+        value_type: integer
+      - name: BBoxJson
+        type_name: KnowledgeRegionBBoxJson
+        value_type: string
+      - name: ImageAssetUri
+        type_name: KnowledgeRegionImageAssetUri
+        value_type: string
+        is_optional: true
+      - name: ImageSha256
+        type_name: KnowledgeRegionImageSha256
+        value_type: string
+        is_optional: true
+      - name: RawText
+        type_name: KnowledgeRegionRawText
+        value_type: string
+        is_optional: true
+        is_embedding: true
+  - name: KnowledgeInterpretation
+    description: Versioned AI interpretation of a retained table or figure image.
+    is_application: true
+    fields:
+      - name: Id
+        type_name: KnowledgeInterpretationId
+        value_type: string
+        is_key: true
+      - name: DocumentId
+        type_name: KnowledgeInterpretationDocumentId
+        value_type: string
+      - name: OwnerId
+        type_name: KnowledgeInterpretationOwnerId
+        value_type: string
+      - name: RegionId
+        type_name: KnowledgeInterpretationRegionId
+        value_type: string
+      - name: Text
+        type_name: KnowledgeInterpretationText
+        value_type: string
+        is_embedding: true
+      - name: StructuredJson
+        type_name: KnowledgeInterpretationStructuredJson
+        value_type: string
+        is_optional: true
+      - name: Model
+        type_name: KnowledgeInterpretationModel
+        value_type: string
+      - name: PromptVersion
+        type_name: KnowledgeInterpretationPromptVersion
+        value_type: string
+      - name: Confidence
+        type_name: KnowledgeInterpretationConfidence
+        value_type: double
+        is_optional: true
+      - name: SourceImageSha256
+        type_name: KnowledgeInterpretationSourceImageSha256
+        value_type: string
+      - name: CreatedAt
+        type_name: KnowledgeInterpretationCreatedAt
+        value_type: datetime
+relations:
+  - name: KnowledgeDocumentHasSection
+    description: A source document contains an extracted section.
+    is_application: true
+    roles:
+      - name: document
+        role_name: document
+        target_entity: KnowledgeDocument
+      - name: section
+        role_name: section
+        target_entity: KnowledgeSection
+  - name: KnowledgeSectionHasRegion
+    description: An extracted section owns a source table or figure region.
+    is_application: true
+    roles:
+      - name: section
+        role_name: section
+        target_entity: KnowledgeSection
+      - name: region
+        role_name: region
+        target_entity: KnowledgeRegion
+  - name: KnowledgeRegionHasInterpretation
+    description: A retained source region has one or more versioned AI interpretations.
+    is_application: true
+    roles:
+      - name: region
+        role_name: region
+        target_entity: KnowledgeRegion
+      - name: interpretation
+        role_name: interpretation
+        target_entity: KnowledgeInterpretation

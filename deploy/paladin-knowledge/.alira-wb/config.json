@@ -1,0 +1,10 @@
+{
+  "endpoint": {
+    "api_url": "http://127.0.0.1:9005"
+  },
+  "format": "paladin.project-configuration/v1",
+  "project": {
+    "default": "librechat-knowledge",
+    "id": "librechat-knowledge"
+  }
+}

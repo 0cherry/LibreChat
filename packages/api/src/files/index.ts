@@ -5,6 +5,7 @@ export * from './context';
 export * from './deletion';
 export * from './extract';
 export * from './documents/crud';
+export * from './documents/pdf';
 export * from './encode';
 export * from './filter';
 export * from './mistral/crud';
