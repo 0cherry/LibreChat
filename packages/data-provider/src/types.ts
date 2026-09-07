@@ -290,6 +290,7 @@ export type TUser = {
   avatar: string;
   role: string;
   provider: string;
+  isApproved?: boolean;
   tenantId?: string;
   plugins?: string[];
   twoFactorEnabled?: boolean;
@@ -300,6 +301,26 @@ export type TUser = {
   };
   createdAt: string;
   updatedAt: string;
+};
+
+export type TAdminPendingUser = Pick<
+  TUser,
+  'id' | 'name' | 'username' | 'email' | 'avatar' | 'role' | 'provider'
+> & {
+  isApproved: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TAdminPendingUsersResponse = {
+  users: TAdminPendingUser[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type TApproveUserResponse = {
+  message: string;
 };
 
 export type TUpdateUserPreferencesRequest = {
@@ -638,6 +659,7 @@ export type TSearchMessageTreeNode = object;
 
 export type TRegisterUserResponse = {
   message: string;
+  pendingApproval?: boolean;
 };
 
 export type TRegisterUser = {

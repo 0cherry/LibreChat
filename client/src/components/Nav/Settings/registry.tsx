@@ -181,7 +181,7 @@ export const registry: SettingEntry[] = [
     labelKey: 'com_ui_admin_panel',
     keywords: ['admin', 'panel', 'dashboard'],
     Component: AdminPanel,
-    show: (ctx) => ctx.adminPanelURL !== '',
+    show: (ctx) => ctx.isAdmin || ctx.adminPanelURL !== '',
   },
 
   // Chat · Sending

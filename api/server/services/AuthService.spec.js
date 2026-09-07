@@ -697,6 +697,7 @@ describe('registerUser', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.ALLOW_UNVERIFIED_EMAIL_LOGIN = 'false';
+    process.env.REQUIRE_ADMIN_APPROVAL = 'false';
     checkEmailConfig.mockReturnValue(false);
     isEmailDomainAllowed.mockReturnValue(true);
     getAppConfig.mockResolvedValue({
@@ -735,6 +736,37 @@ describe('registerUser', () => {
         provider: 'google',
       }),
     );
+  });
+
+  it('creates later users as pending when administrator approval is required', async () => {
+    process.env.REQUIRE_ADMIN_APPROVAL = 'true';
+
+    const result = await registerUser(registrationPayload);
+
+    expect(result).toMatchObject({ status: 200, pendingApproval: true });
+    expect(createUser.mock.calls[0][0]).toEqual(expect.objectContaining({ isApproved: false }));
+    expect(createUser.mock.calls[0][2]).toBe(true);
+  });
+
+  it('keeps the first bootstrap administrator approved', async () => {
+    process.env.REQUIRE_ADMIN_APPROVAL = 'true';
+    countUsers.mockResolvedValue(0);
+
+    const result = await registerUser(registrationPayload);
+
+    expect(result).toMatchObject({ status: 200, pendingApproval: false });
+    expect(createUser.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ role: 'ADMIN', isApproved: true }),
+    );
+  });
+
+  it('lets trusted CLI registration bypass approval', async () => {
+    process.env.REQUIRE_ADMIN_APPROVAL = 'true';
+
+    const result = await registerUser(registrationPayload, { isApproved: true });
+
+    expect(result).toMatchObject({ status: 200, pendingApproval: false });
+    expect(createUser.mock.calls[0][0]).toEqual(expect.objectContaining({ isApproved: true }));
   });
 
   it('normalizes mixed-case emails when issuing the verification token and link', async () => {

@@ -10,6 +10,8 @@ const getLoginError = (errorText: string): TranslationKeys => {
   switch (true) {
     case errorText.includes('429'):
       return 'com_auth_error_login_rl';
+    case errorText.includes('423'):
+      return 'com_auth_error_login_pending_approval';
     case errorText.includes('403'):
       return 'com_auth_error_login_ban';
     case errorText.includes('500'):

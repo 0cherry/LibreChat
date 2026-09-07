@@ -157,6 +157,27 @@ test('renders registration form', () => {
   );
 });
 
+test('shows a persistent approval message and hides the form for pending registrations', () => {
+  const { getByText, getByRole, queryByRole } = setup({
+    useRegisterUserMutationReturnValue: {
+      isLoading: false,
+      isError: false,
+      mutate: jest.fn(),
+      data: { pendingApproval: true },
+      isSuccess: true,
+      error: null,
+    },
+  });
+
+  expect(
+    getByText(
+      'Your registration request was received. You can sign in after an administrator approves your account.',
+    ),
+  ).toHaveAttribute('role', 'alert');
+  expect(queryByRole('form', { name: /Registration form/i })).not.toBeInTheDocument();
+  expect(getByRole('link', { name: 'Login' })).toBeInTheDocument();
+});
+
 // test('calls registerUser.mutate on registration', async () => {
 //   const mutate = jest.fn();
 //   const { getByTestId, getByRole, history } = setup({

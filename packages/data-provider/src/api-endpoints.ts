@@ -466,6 +466,11 @@ export const skillFile = (id: string, relativePath: string) =>
 export const insights = () => `${BASE_URL}/api/admin/insights`;
 export const insightsAccess = () => `${insights()}/access`;
 
+export const adminUsers = () => `${BASE_URL}/api/admin/users`;
+export const adminPendingUsers = () => `${adminUsers()}/pending`;
+export const approveAdminUser = (userId: string) =>
+  `${adminUsers()}/${encodeURIComponent(userId)}/approve`;
+
 export const adminSkillsSync = () => `${BASE_URL}/api/admin/skills/sync`;
 export const adminSkillsSyncStatus = () => `${adminSkillsSync()}/status`;
 export const adminSkillsSyncRun = () => `${adminSkillsSync()}/run`;

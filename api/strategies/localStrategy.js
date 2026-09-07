@@ -43,6 +43,15 @@ async function passportLogin(req, email, password, done) {
       return done(null, false, { message: 'Incorrect password.' });
     }
 
+    if (user.isApproved === false) {
+      logError('Passport Local Strategy - Account pending approval', { email });
+      logger.warn(`[Login] [Approval pending] [Username: ${email}] [Request-IP: ${req.ip}]`);
+      return done(null, false, {
+        message: 'Account pending administrator approval.',
+        status: 423,
+      });
+    }
+
     const emailEnabled = checkEmailConfig();
     const userCreatedAtTimestamp = Math.floor(new Date(user.createdAt).getTime() / 1000);
 

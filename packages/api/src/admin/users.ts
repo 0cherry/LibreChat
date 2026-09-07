@@ -15,7 +15,23 @@ import { parsePagination } from './pagination';
 
 const MAX_SEARCH_LENGTH = 200;
 
-const USER_LIST_FIELDS = '_id name username email avatar role provider createdAt updatedAt';
+const USER_LIST_FIELDS =
+  '_id name username email avatar role provider isApproved createdAt updatedAt';
+
+function mapUser(u: IUser): AdminUserListItem {
+  return {
+    id: u._id?.toString() ?? '',
+    name: u.name ?? '',
+    username: u.username ?? '',
+    email: u.email ?? '',
+    avatar: u.avatar ?? '',
+    role: u.role ?? 'USER',
+    provider: u.provider ?? 'local',
+    isApproved: u.isApproved !== false,
+    createdAt: u.createdAt?.toISOString(),
+    updatedAt: u.updatedAt?.toISOString(),
+  };
+}
 
 export interface AdminUsersDeps {
   findUsers: (
@@ -24,6 +40,7 @@ export interface AdminUsersDeps {
     options?: { limit?: number; offset?: number; sort?: Record<string, 1 | -1> },
   ) => Promise<IUser[]>;
   countUsers: (filter?: FilterQuery<IUser>) => Promise<number>;
+  updateUser: (userId: string, data: Partial<IUser>) => Promise<IUser | null>;
   beginAgentTriggerUserDeletion: (
     userId: string,
     startedAt: Date,
@@ -61,12 +78,15 @@ export interface AdminUsersDeps {
 
 export function createAdminUsersHandlers(deps: AdminUsersDeps): {
   listUsers: (req: ServerRequest, res: Response) => Promise<Response>;
+  listPendingUsers: (req: ServerRequest, res: Response) => Promise<Response>;
+  approveUser: (req: ServerRequest, res: Response) => Promise<Response>;
   searchUsers: (req: ServerRequest, res: Response) => Promise<Response>;
   deleteUser: (req: ServerRequest, res: Response) => Promise<Response>;
 } {
   const {
     findUsers,
     countUsers,
+    updateUser,
     beginAgentTriggerUserDeletion,
     cancelAgentTriggerUserDeletion,
     drainAgentTriggerDeliveriesForUser,
@@ -89,22 +109,55 @@ export function createAdminUsersHandlers(deps: AdminUsersDeps): {
         countUsers(),
       ]);
 
-      const mapped: AdminUserListItem[] = users.map((u) => ({
-        id: u._id?.toString() ?? '',
-        name: u.name ?? '',
-        username: u.username ?? '',
-        email: u.email ?? '',
-        avatar: u.avatar ?? '',
-        role: u.role ?? 'USER',
-        provider: u.provider ?? 'local',
-        createdAt: u.createdAt?.toISOString(),
-        updatedAt: u.updatedAt?.toISOString(),
-      }));
+      const mapped = users.map(mapUser);
 
       return res.status(200).json({ users: mapped, total, limit, offset });
     } catch (error) {
       logger.error('[adminUsers] listUsers error:', error);
       return res.status(500).json({ error: 'Failed to list users' });
+    }
+  }
+
+  async function listPendingUsersHandler(req: ServerRequest, res: Response) {
+    try {
+      const { limit, offset } = parsePagination(req.query);
+      const filter = { isApproved: false };
+      const [users, total] = await Promise.all([
+        findUsers(filter, USER_LIST_FIELDS, { limit, offset, sort: { createdAt: 1 } }),
+        countUsers(filter),
+      ]);
+
+      return res.status(200).json({ users: users.map(mapUser), total, limit, offset });
+    } catch (error) {
+      logger.error('[adminUsers] listPendingUsers error:', error);
+      return res.status(500).json({ error: 'Failed to list pending users' });
+    }
+  }
+
+  async function approveUserHandler(req: ServerRequest, res: Response) {
+    try {
+      const { id } = req.params as { id: string };
+      if (!isValidObjectIdString(id)) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
+      }
+
+      const [user] = await findUsers({ _id: id }, 'isApproved', { limit: 1 });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      if (user.isApproved !== false) {
+        return res.status(409).json({ error: 'User is already approved' });
+      }
+
+      const updated = await updateUser(id, { isApproved: true });
+      if (!updated) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      return res.status(200).json({ message: 'User approved successfully' });
+    } catch (error) {
+      logger.error('[adminUsers] approveUser error:', error);
+      return res.status(500).json({ error: 'Failed to approve user' });
     }
   }
 
@@ -260,6 +313,8 @@ export function createAdminUsersHandlers(deps: AdminUsersDeps): {
 
   return {
     listUsers: listUsersHandler,
+    listPendingUsers: listPendingUsersHandler,
+    approveUser: approveUserHandler,
     searchUsers: searchUsersHandler,
     deleteUser: deleteUserHandler,
   };

@@ -51,8 +51,8 @@ const OPENID_REUSE_MAX_SESSION_AGE_MS = math(
 const registrationController = async (req, res) => {
   try {
     const response = await registerUser(req.body);
-    const { status, message } = response;
-    res.status(status).send({ message });
+    const { status, message, pendingApproval } = response;
+    res.status(status).send({ message, pendingApproval });
   } catch (err) {
     logger.error('[registrationController]', err);
     return res.status(500).json({ message: err.message });

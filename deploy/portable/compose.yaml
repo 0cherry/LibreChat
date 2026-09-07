@@ -1,0 +1,79 @@
+name: librechat-portable
+
+services:
+  api:
+    image: ${LIBRECHAT_IMAGE:?Run setup.ps1 first}
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    ports:
+      - '${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-3080}:3080'
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3080
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongodb:27017/LibreChat
+      MEILI_HOST: http://meilisearch:7700
+      LIBRECHAT_TEMP_CREDENTIALS_PATH: /app/data/.env.temp
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+    volumes:
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+      - app-data:/app/data
+      - images:/app/client/public/images
+      - uploads:/app/uploads
+      - logs:/app/logs
+      - skills:/app/skill
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3080/api/config').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+  mongodb:
+    image: ${MONGO_IMAGE:?Run setup.ps1 first}
+    pull_policy: never
+    restart: unless-stopped
+    command: ['mongod', '--noauth', '--bind_ip_all']
+    volumes:
+      - mongodb:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+  meilisearch:
+    image: ${MEILI_IMAGE:?Run setup.ps1 first}
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: 'true'
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?Run setup.ps1 first}
+      MEILI_ENV: production
+    volumes:
+      - search:/meili_data
+
+volumes:
+  mongodb:
+  search:
+  app-data:
+  images:
+  uploads:
+  logs:
+  skills:

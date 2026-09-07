@@ -9,7 +9,7 @@ const requireLocalAuth = (req, res, next) => {
     }
     if (!user) {
       logger.debug('[requireLocalAuth] Error: No user');
-      return res.status(404).send(info);
+      return res.status(info?.status ?? 404).send(info);
     }
     if (info && info.message) {
       logger.debug('[requireLocalAuth] Error: ' + info.message);

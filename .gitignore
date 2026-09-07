@@ -1,3 +1,6 @@
+# Generated portable bundles and temporary clean build contexts
+/artifacts/
+
 ### node etc ###
 
 # Logs

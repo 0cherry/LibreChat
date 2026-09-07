@@ -34,6 +34,14 @@ export function getInsightsAccess(): Promise<TInsightsAccessResponse> {
   return request.get(endpoints.insightsAccess());
 }
 
+export function getAdminPendingUsers(): Promise<t.TAdminPendingUsersResponse> {
+  return request.get(endpoints.adminPendingUsers());
+}
+
+export function approveAdminUser(userId: string): Promise<t.TApproveUserResponse> {
+  return request.patch(endpoints.approveAdminUser(userId));
+}
+
 export function getLangfuseConnection(): Promise<t.TLangfuseConnectionStatus> {
   return request.get(endpoints.adminLangfuseConnection());
 }

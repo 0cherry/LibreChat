@@ -20,6 +20,7 @@ export interface IUser extends Document {
   username?: string;
   email: string;
   emailVerified: boolean;
+  isApproved?: boolean;
   password?: string;
   avatar?: string;
   provider: string;
@@ -102,6 +103,7 @@ export interface UpdateUserRequest {
   email?: string;
   role?: string;
   emailVerified?: boolean;
+  isApproved?: boolean;
   avatar?: string;
   plugins?: string[];
   twoFactorEnabled?: boolean;
@@ -125,6 +127,7 @@ export interface UserFilterOptions extends CursorPaginationParams {
   search?: string;
   role?: string;
   emailVerified?: boolean;
+  isApproved?: boolean;
   provider?: string;
   twoFactorEnabled?: boolean;
   // External IDs

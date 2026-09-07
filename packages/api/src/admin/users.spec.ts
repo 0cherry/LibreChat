@@ -53,6 +53,7 @@ function createDeps(overrides: Partial<AdminUsersDeps> = {}): AdminUsersDeps {
   return {
     findUsers: jest.fn().mockResolvedValue([]),
     countUsers: jest.fn().mockResolvedValue(0),
+    updateUser: jest.fn().mockResolvedValue(mockUser({ isApproved: true })),
     beginAgentTriggerUserDeletion: jest.fn().mockResolvedValue('acquired'),
     cancelAgentTriggerUserDeletion: jest.fn().mockResolvedValue(true),
     drainAgentTriggerDeliveriesForUser: jest.fn().mockResolvedValue(undefined),
@@ -150,6 +151,66 @@ describe('createAdminUsersHandlers', () => {
 
       expect(status).toHaveBeenCalledWith(500);
       expect(json).toHaveBeenCalledWith({ error: 'Failed to list users' });
+    });
+  });
+
+  describe('registration approval', () => {
+    it('lists only pending users in oldest-first order', async () => {
+      const pending = mockUser({ isApproved: false });
+      const findUsers = jest.fn().mockResolvedValue([pending]);
+      const countUsers = jest.fn().mockResolvedValue(1);
+      const handlers = createAdminUsersHandlers(createDeps({ findUsers, countUsers }));
+      const { req, res, status, json } = createReqRes({ query: { limit: '10', offset: '0' } });
+
+      await handlers.listPendingUsers(req, res);
+
+      expect(findUsers).toHaveBeenCalledWith(
+        { isApproved: false },
+        expect.stringContaining('isApproved'),
+        { limit: 10, offset: 0, sort: { createdAt: 1 } },
+      );
+      expect(countUsers).toHaveBeenCalledWith({ isApproved: false });
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json.mock.calls[0][0].users[0]).toMatchObject({ isApproved: false });
+    });
+
+    it('approves a pending user', async () => {
+      const findUsers = jest.fn().mockResolvedValue([mockUser({ isApproved: false })]);
+      const updateUser = jest.fn().mockResolvedValue(mockUser({ isApproved: true }));
+      const handlers = createAdminUsersHandlers(createDeps({ findUsers, updateUser }));
+      const { req, res, status, json } = createReqRes({ params: { id: validUserId } });
+
+      await handlers.approveUser(req, res);
+
+      expect(updateUser).toHaveBeenCalledWith(validUserId, { isApproved: true });
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith({ message: 'User approved successfully' });
+    });
+
+    it('rejects approval for an invalid user id', async () => {
+      const deps = createDeps();
+      const handlers = createAdminUsersHandlers(deps);
+      const { req, res, status, json } = createReqRes({ params: { id: 'invalid' } });
+
+      await handlers.approveUser(req, res);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({ error: 'Invalid user ID format' });
+      expect(deps.updateUser).not.toHaveBeenCalled();
+    });
+
+    it('does not update an already approved user', async () => {
+      const deps = createDeps({
+        findUsers: jest.fn().mockResolvedValue([mockUser({ isApproved: true })]),
+      });
+      const handlers = createAdminUsersHandlers(deps);
+      const { req, res, status, json } = createReqRes({ params: { id: validUserId } });
+
+      await handlers.approveUser(req, res);
+
+      expect(status).toHaveBeenCalledWith(409);
+      expect(json).toHaveBeenCalledWith({ error: 'User is already approved' });
+      expect(deps.updateUser).not.toHaveBeenCalled();
     });
   });
 

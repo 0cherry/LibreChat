@@ -24,6 +24,7 @@ export enum QueryKeys {
   startupConfig = 'startupConfig',
   insights = 'insights',
   insightsAccess = 'insightsAccess',
+  adminPendingUsers = 'adminPendingUsers',
   assistants = 'assistants',
   assistant = 'assistant',
   agents = 'agents',
@@ -105,6 +106,7 @@ export const DynamicQueryKeys = {
 } as const;
 
 export enum MutationKeys {
+  approveUser = 'approveUser',
   subagentControl = 'subagentControl',
   enqueueAgentQueuedTurn = 'enqueueAgentQueuedTurn',
   cancelAgentQueuedTurn = 'cancelAgentQueuedTurn',

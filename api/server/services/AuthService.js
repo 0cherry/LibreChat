@@ -369,7 +369,7 @@ const verifyEmail = async (req) => {
  * Register a new user.
  * @param {IUser} user <email, password, name, username>
  * @param {Partial<IUser>} [additionalData={}] Trusted server-provided fields, such as CLI overrides.
- * @returns {Promise<{status: number, message: string, user?: IUser}>}
+ * @returns {Promise<{status: number, message: string, pendingApproval?: boolean, user?: IUser}>}
  */
 const registerUser = async (user, additionalData = {}) => {
   const result = registerSchema.safeParse(user);
@@ -398,6 +398,7 @@ const registerUser = async (user, additionalData = {}) => {
       return { status: 403, message: errorMessage };
     }
 
+    const approvalRequired = isEnabled(process.env.REQUIRE_ADMIN_APPROVAL);
     const existingUser = await findUser({ email }, 'email _id');
 
     if (existingUser) {
@@ -409,7 +410,11 @@ const registerUser = async (user, additionalData = {}) => {
 
       // Sleep for 1 second
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      return { status: 200, message: genericVerificationMessage };
+      return {
+        status: 200,
+        message: genericVerificationMessage,
+        pendingApproval: approvalRequired,
+      };
     }
 
     // Only the first user in the unscoped, single-tenant deployment bootstraps ADMIN.
@@ -424,6 +429,7 @@ const registerUser = async (user, additionalData = {}) => {
       name,
       avatar: null,
       role: isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER,
+      isApproved: !approvalRequired || isFirstRegisteredUser,
       password: bcrypt.hashSync(password, salt),
       ...trustedAdditionalData,
     };
@@ -431,7 +437,13 @@ const registerUser = async (user, additionalData = {}) => {
     const emailEnabled = checkEmailConfig();
     const disableTTL = isEnabled(process.env.ALLOW_UNVERIFIED_EMAIL_LOGIN);
 
-    const newUser = await createUser(newUserData, appConfig.balance, disableTTL, true);
+    const pendingApproval = newUserData.isApproved === false;
+    const newUser = await createUser(
+      newUserData,
+      appConfig.balance,
+      disableTTL || pendingApproval,
+      true,
+    );
     newUserId = newUser._id;
     if (emailEnabled && !newUser.emailVerified) {
       await sendVerificationEmail({
@@ -443,7 +455,7 @@ const registerUser = async (user, additionalData = {}) => {
       await updateUser(newUserId, { emailVerified: true });
     }
 
-    return { status: 200, message: genericVerificationMessage };
+    return { status: 200, message: genericVerificationMessage, pendingApproval };
   } catch (err) {
     logger.error('[registerUser] Error in registering user:', err);
     if (newUserId) {
